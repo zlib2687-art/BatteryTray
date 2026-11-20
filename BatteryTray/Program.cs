@@ -118,6 +118,7 @@ static class Program
         // Une seule instance à la fois
         using var mutex = new Mutex(true, @"Local\BatteryTray.SingleInstance", out bool created);
         if (!created) return 0;
+        Watchdog.ClearIntentionalExit(); // on tourne : un futur arrêt sans « Quitter » sera donc considéré comme inattendu
 
         Application.Run(new TrayApp());
         return 0;
@@ -351,6 +352,7 @@ sealed class TrayApp : ApplicationContext
 
     protected override void ExitThreadCore()
     {
+        Watchdog.MarkIntentionalExit(); // « Quitter » ou fin de session : la tâche de surveillance ne doit pas relancer
         _settings.Save(); // enregistre les dernières valeurs connues (affichage hors ligne)
         _ratchet.Flush();
         _estimator.Flush(); // et l'historique d'autonomie (écrit au plus toutes les 5 min le reste du temps)

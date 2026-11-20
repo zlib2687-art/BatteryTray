@@ -45,6 +45,7 @@ static class Installer
                 run.SetValue(AppName, $"\"{TargetExe}\"");
 
             CreateShortcut(ShortcutPath, TargetExe);
+            Watchdog.Register(InstallDir); // relance automatique après un arrêt inattendu (facultatif : un échec n'empêche pas l'installation)
 
             using (var k = Registry.CurrentUser.CreateSubKey(UninstallKey))
             {
@@ -82,6 +83,7 @@ static class Installer
             MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes;
         try
         {
+            Watchdog.Unregister(); // d'abord : sinon la tâche relancerait le programme qu'on arrête
             StopRunningInstances();
 
             using (var run = Registry.CurrentUser.OpenSubKey(RunKey, writable: true))
