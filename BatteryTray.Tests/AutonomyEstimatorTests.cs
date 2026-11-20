@@ -31,6 +31,25 @@ public class AutonomyEstimatorTests : IDisposable
     }
 
     [Fact]
+    public void RatchetNeverRaisesDurationWhileLevelFalls()
+    {
+        var ratchet = new AutonomyRatchet();
+        BatteryReading R(int p, double hours, int minutes, string? charge = null) =>
+            new BatteryReading("hs", "Casque", DeviceKind.Headset, p, charge, null, _t0.AddMinutes(minutes)) { AutonomyHours = hours };
+
+        var a = ratchet.Apply(new[] { R(69, 40, 0) })[0];
+        var b = ratchet.Apply(new[] { R(68, 43, 60) })[0];   // nouvelle estimation plus haute : refusée
+        Assert.True(b.AutonomyHours <= a.AutonomyHours - 1.0 + 1e-9);
+
+        var c = ratchet.Apply(new[] { R(68, 30, 120) })[0];   // estimation plus basse : acceptée
+        Assert.Equal(30, c.AutonomyHours);
+
+        var d = ratchet.Apply(new[] { R(60, 50, 180, ChargeState.Charging) })[0]; // en charge : on repart de zéro
+        var e = ratchet.Apply(new[] { R(90, 80, 600) })[0];
+        Assert.Equal(80, e.AutonomyHours);
+    }
+
+    [Fact]
     public void FewChangesDuringIdleStayCloseToRatedAutonomy()
     {
         // Casque resté au repos : 3 changements espacés donnaient ~71 h pour 68 % (annoncé : 50 h pleine charge).

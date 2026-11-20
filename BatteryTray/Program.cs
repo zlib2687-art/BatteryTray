@@ -165,6 +165,7 @@ sealed class TrayApp : ApplicationContext
     // créées et modifiées sur ce thread (sinon Windows les retire quand l'autre thread se termine).
     readonly Control _ui = new();
     readonly AutonomyEstimator _estimator = new(Path.Combine(AppSettings.DataDir, "historique.json"));
+    readonly AutonomyRatchet _ratchet = new(Path.Combine(AppSettings.DataDir, "autonomie-affichee.json"));
     FlyoutForm? _flyout;
     SettingsForm? _settingsForm;
     IReadOnlyList<BatteryReading> _latest = Array.Empty<BatteryReading>();
@@ -311,7 +312,7 @@ sealed class TrayApp : ApplicationContext
                     try
                     {
                         // masquage, noms personnalisés, ordre : voir DeviceView
-                        var view = DeviceView.Prepare(withAutonomy, _settings, out bool changed);
+                        var view = _ratchet.Apply(DeviceView.Prepare(withAutonomy, _settings, out bool changed)); // la durée ne remonte jamais en décharge
                         if (changed) _settings.Save();
                         _latest = view;
                         _tray.Update(view);
@@ -351,6 +352,7 @@ sealed class TrayApp : ApplicationContext
     protected override void ExitThreadCore()
     {
         _settings.Save(); // enregistre les dernières valeurs connues (affichage hors ligne)
+        _ratchet.Flush();
         _estimator.Flush(); // et l'historique d'autonomie (écrit au plus toutes les 5 min le reste du temps)
         _sleepTimer.Dispose();
         _watchTimer.Dispose();
