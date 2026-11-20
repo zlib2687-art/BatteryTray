@@ -1,0 +1,25 @@
+# Résultats de compilation : contiennent des chemins de ton PC (nom d'utilisateur Windows) et sont régénérables
+bin/
+obj/
+publish/
+# L'installateur fait ~170 Mo : au-delà de la limite de 100 Mo par fichier de GitHub.
+# Publie-le dans « Releases » (limite 2 Go), pas dans le dépôt.
+dist/
+TestResults/
+*.user
+*.suo
+.vs/
+.idea/
+.vscode/
+
+# Données locales de l'application : jamais dans un dépôt
+journal.txt
+historique.json
+settings.json
+settings.json.bak
+*.log
+
+# Fichiers temporaires et captures d'écran de travail
+*.tmp
+Thumbs.db
+desktop.ini
