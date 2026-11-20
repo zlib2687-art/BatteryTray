@@ -31,6 +31,20 @@ public class AutonomyEstimatorTests : IDisposable
     }
 
     [Fact]
+    public void FewChangesDuringIdleStayCloseToRatedAutonomy()
+    {
+        // Casque resté au repos : 3 changements espacés donnaient ~71 h pour 68 % (annoncé : 50 h pleine charge).
+        var e = new AutonomyEstimator(Path.Combine(_dir, "idle.json"));
+        BatteryReading last = null!;
+        for (int m = 0; m <= 126; m += 2)
+        {
+            int p = m < 11 ? 71 : m < 36 ? 70 : m < 124 ? 69 : 68;
+            last = e.Apply(new[] { new BatteryReading("hs", "Logitech PRO X 2", DeviceKind.Headset, p, null, null, _t0.AddMinutes(m)) })[0];
+        }
+        Assert.InRange(last.AutonomyHours!.Value, 30, 52);
+    }
+
+    [Fact]
     public void Steady_discharge_gives_estimate_close_to_truth()
     {
         // 6 points par heure depuis 80 % pendant 1 h -> reste ~74 %, donc ~12 h 20 min

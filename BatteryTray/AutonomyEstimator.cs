@@ -38,7 +38,8 @@ public sealed class AutonomyEstimator
     const double DischargeMinSpanHours = 0.5;      // 30 min entre le premier et le dernier changement
     const double LearnMinSpanHours = 1.5;          // une mesure est « solide » à partir de 5 changements sur 1 h 30
     const int LearnMinPoints = 5;
-    const double LowerBoundHours = 0.25;           // 15 min sans baisse : première borne « plus de… »
+    const double PriorWeight = 6;                  // poids de l'autonomie annoncée, en « changements équivalents »
+    const double LowerBoundHours = 0.25;          // 15 min sans baisse : première borne « plus de… »
 
     // charge (une charge est plus courte : seuils plus bas)
     const int ChargeMinPoints = 3;
@@ -135,6 +136,15 @@ public sealed class AutonomyEstimator
             _store.Rates[r.Id] = hasLearned ? 0.7 * learned + 0.3 * solid : solid;
 
         double? rate = measured ?? (hasLearned ? learned : null);
+
+        // Peu de changements = mesure fragile (un casque resté au repos une heure donnait « 71 h » au lieu de ~35 h).
+        // Tant qu'on connaît l'autonomie annoncée du modèle, elle pèse comme PriorWeight changements imaginaires.
+        if (measured is double m && DeviceDefaults.RatedHoursFor(r.Name) is double ratedFull && ratedFull > 0)
+        {
+            double n = crossings.Count;
+            rate = (n * m + PriorWeight * (100.0 / ratedFull)) / (n + PriorWeight);
+        }
+
         if (rate is double perHour)
         {
             // compte à rebours depuis le dernier changement, sinon niveau affiché tel quel
