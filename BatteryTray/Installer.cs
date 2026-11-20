@@ -26,6 +26,10 @@ static class Installer
     static string TargetExe => Path.Combine(InstallDir, "BatteryTray.exe");
     static string ShortcutPath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), AppName + ".lnk");
 
+    /// <summary>Vrai si ce programme est l'exemplaire installé (et non une copie lancée ailleurs, par exemple un test).</summary>
+    public static bool RunsFromInstallDir() =>
+        string.Equals(Path.GetFullPath(Environment.ProcessPath ?? ""), Path.GetFullPath(TargetExe), StringComparison.OrdinalIgnoreCase);
+
     public static bool IsSetupFile() =>
         string.Equals(Path.GetFileName(Environment.ProcessPath), SetupFileName, StringComparison.OrdinalIgnoreCase);
 

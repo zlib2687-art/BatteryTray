@@ -57,6 +57,13 @@ public sealed class AppSettings
     public HashSet<string> LowNotified { get; set; } = new();
     public HashSet<string> FullNotified { get; set; } = new();
 
+    /// <summary>
+    /// Choix « Démarrer avec Windows » (vrai par défaut). Mémorisé ici et pas seulement dans la clé Run : l'application
+    /// recrée la clé au démarrage si elle manque (désinstallation partielle, clé effacée), et le script de surveillance
+    /// lit ce réglage pour savoir s'il a le droit de la relancer.
+    /// </summary>
+    public bool StartWithWindows { get; set; } = true;
+
     public static AppSettings Current { get; set; } = new();
 
     /// <summary>Dossier des données (réglages, historique, journal). Modifiable pour les tests.</summary>

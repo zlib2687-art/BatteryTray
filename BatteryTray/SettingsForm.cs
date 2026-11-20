@@ -250,6 +250,7 @@ sealed class SettingsForm : Form
         _s.OrangeBelow = (int)_orange.Value;
         _s.RedBelow = Math.Min((int)_red.Value, _s.OrangeBelow - 1); // le rouge reste sous l'orange
 
+        _s.StartWithWindows = _startup.Checked;
         try { Installer.SetStartup(_startup.Checked); }
         catch (Exception e) { MessageBox.Show(e.Message, Text, MessageBoxButtons.OK, MessageBoxIcon.Warning); }
 

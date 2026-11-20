@@ -44,6 +44,14 @@ static class Watchdog
         "dossier = fso.GetParentFolderName(WScript.ScriptFullName)",
         "donnees = sh.ExpandEnvironmentStrings(\"%APPDATA%\") & \"\\BatteryTray\"",
         "If fso.FileExists(donnees & \"\\arret-voulu.flag\") Then WScript.Quit 0",
+        // « Démarrer avec Windows » désactivé dans les paramètres : l'utilisateur ne veut pas qu'elle se lance seule, on respecte ce choix
+        "reglages = donnees & \"\\settings.json\"",
+        "If fso.FileExists(reglages) Then",
+        "  Set fr = fso.OpenTextFile(reglages, 1)",
+        "  If Not fr.AtEndOfStream Then texte = fr.ReadAll Else texte = \"\"",
+        "  fr.Close",
+        "  If InStr(1, texte, \"\"\"StartWithWindows\"\": false\", 1) > 0 Then WScript.Quit 0",
+        "End If",
         "Set wmi = GetObject(\"winmgmts:\\\\.\\root\\cimv2\")",
         "Set procs = wmi.ExecQuery(\"Select ProcessId From Win32_Process Where Name = 'BatteryTray.exe'\")",
         "If procs.Count > 0 Then WScript.Quit 0",
@@ -53,7 +61,9 @@ static class Watchdog
         "Set f = fso.OpenTextFile(donnees & \"\\redemarrages.txt\", 8, True)",
         "f.WriteLine Year(Now) & \"-\" & Right(\"0\" & Month(Now), 2) & \"-\" & Right(\"0\" & Day(Now), 2) & \" \" & Right(\"0\" & Hour(Now), 2) & \":\" & Right(\"0\" & Minute(Now), 2) & \" relance apres un arret inattendu\"",
         "f.Close",
-        "sh.Run \"\"\"\" & exe & \"\"\"\", 0, False",
+        // style 1 (normal) et NON 0 (masqué) : un programme lancé « masqué » transmet cet état à sa première fenêtre,
+        // et la fenêtre des paramètres ne s'ouvrait plus. L'application n'a aucune fenêtre au démarrage : rien ne s'affiche.
+        "sh.Run \"\"\"\" & exe & \"\"\"\", 1, False",
         "",
     });
 

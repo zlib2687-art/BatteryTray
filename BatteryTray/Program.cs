@@ -118,6 +118,8 @@ static class Program
         // Une seule instance à la fois
         using var mutex = new Mutex(true, @"Local\BatteryTray.SingleInstance", out bool created);
         if (!created) return 0;
+        // la clé « Démarrer avec Windows » manque alors que le réglage est actif : on la recrée (installée seulement si c'est bien l'exemplaire installé)
+        try { if (AppSettings.Current.StartWithWindows && !Installer.IsStartupEnabled() && Installer.RunsFromInstallDir()) Installer.SetStartup(true); } catch { }
         Watchdog.ClearIntentionalExit(); // on tourne : un futur arrêt sans « Quitter » sera donc considéré comme inattendu
 
         Application.Run(new TrayApp());

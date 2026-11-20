@@ -12,6 +12,9 @@ public sealed class AutonomyRatchet
 {
     public sealed record Entry(int Percent, double Hours, DateTime At);
 
+    /// <summary>Au-delà de cet écart entre deux lectures, le garde-fou n'est plus fiable : la valeur précédente est oubliée.</summary>
+    public const double MaxGapHours = 1;
+
     readonly object _sync = new();
     readonly string? _path;
     readonly Dictionary<string, Entry> _last;
@@ -40,7 +43,10 @@ public sealed class AutonomyRatchet
                 var shown = hours;
                 if (_last.TryGetValue(r.Id, out var prev))
                 {
-                    if (p > prev.Percent) { /* niveau remonté : nouvelle période */ }
+                    double gap = (r.At - prev.At).TotalHours;
+                    // niveau remonté (charge) ou longue absence (PC éteint, application fermée) : on repart de la nouvelle
+                    // estimation. Sans cela, 48 h d'absence retiraient 48 h à la durée et affichaient « 0 h » jusqu'à la charge.
+                    if (p > prev.Percent || gap > MaxGapHours || gap < 0) { }
                     else
                     {
                         double elapsed = Math.Max(0, (r.At - prev.At).TotalHours);

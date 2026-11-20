@@ -34,8 +34,23 @@ public class WatchdogTests : IDisposable
         int flag = s.IndexOf("arret-voulu.flag", StringComparison.Ordinal);
         int running = s.IndexOf("Win32_Process", StringComparison.Ordinal);
         int start = s.IndexOf("sh.Run", StringComparison.Ordinal);
-        Assert.True(flag >= 0 && running > flag && start > running);
-        Assert.Contains(", 0, False", s); // fenêtre masquée
+        int startup = s.IndexOf("StartWithWindows", StringComparison.Ordinal);
+        Assert.True(flag >= 0 && startup > flag && running > startup && start > running);
+        // Jamais « masqué » (0) : l'état serait transmis à la première fenêtre du programme (paramètres invisibles)
+        Assert.Contains("\"\"\", 1, False", s);
+        Assert.DoesNotContain("\"\"\", 0, False", s);
+    }
+
+    [Fact]
+    public void SavedSettingsContainTheExactTextTheScriptLooksFor()
+    {
+        var s = new AppSettings { StartWithWindows = false };
+        s.Save();
+        string json = File.ReadAllText(AppSettings.FilePath);
+        Assert.Contains("\"StartWithWindows\": false", json);
+        Assert.True(AppSettings.Load().StartWithWindows == false);
+        new AppSettings().Save();
+        Assert.DoesNotContain("\"StartWithWindows\": false", File.ReadAllText(AppSettings.FilePath));
     }
 
     [Fact]
