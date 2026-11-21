@@ -242,6 +242,35 @@ public sealed class HidDev : IDisposable
         return ok;
     }
 
+    /// <summary>Envoie un rapport de sortie par le canal de contrôle (HidD_SetOutputReport) ; data[0] = identifiant de rapport.</summary>
+    public bool SetOutputReport(byte[] data)
+    {
+        if (_stream == null || _coll == null) return false;
+        try
+        {
+            var buf = new byte[Math.Max(_coll.OutLen, data.Length)];
+            data.CopyTo(buf, 0);
+            _stream.Write(buf); // HidSharp 2.1 n'expose pas HidD_SetOutputReport : écriture ordinaire
+            return true;
+        }
+        catch (Exception e) when (e is IOException or TimeoutException or InvalidOperationException or NotSupportedException) { return false; }
+    }
+
+    /// <summary>Lit un rapport d'entrée par le canal de contrôle (HidD_GetInputReport) ; data[0] = identifiant de rapport.</summary>
+    public bool GetInputReport(byte reportId, out byte[] data)
+    {
+        data = Array.Empty<byte>();
+        if (_stream == null || _coll == null || _coll.InLen <= 0) return false;
+        var buf = new byte[_coll.InLen];
+        buf[0] = reportId;
+        try { int n = ReadInto(buf); if (n <= 0) return false; }
+        catch (Exception e) when (e is IOException or TimeoutException or InvalidOperationException or NotSupportedException) { return false; }
+        data = buf;
+        return true;
+    }
+
+    int ReadInto(byte[] buf) { _stream!.ReadTimeout = 20; var tmp = new byte[buf.Length]; int n = _stream.Read(tmp, 0, tmp.Length); if (n > 0) Array.Copy(tmp, buf, Math.Min(n, buf.Length)); return n; }
+
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     static extern IntPtr CreateFile(string name, uint access, uint share, IntPtr sec, uint disposition, uint flags, IntPtr template);
     [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr h);

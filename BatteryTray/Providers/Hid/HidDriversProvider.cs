@@ -28,6 +28,9 @@ public sealed class HidDriversProvider : IBatteryProvider
         ("Jabra", JabraDriver.Poll),
         ("JBL Quantum", JblDriver.Poll),
         ("Cooler Master", CoolerMasterDriver.Poll),
+        ("Alienware", AlienwareDriver.Poll),
+        ("Audeze", AudezeDriver.Poll),
+        ("Akko", AkkoDriver.Poll),
     };
 
     /// <summary>Durée maximale cumulée d'une lecture : au-delà, les pilotes restants sont sautés jusqu'à la lecture suivante.</summary>
