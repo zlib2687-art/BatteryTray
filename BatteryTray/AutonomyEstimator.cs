@@ -62,6 +62,9 @@ public sealed class AutonomyEstimator
     /// <summary>La borne « plus de… » est plafonnée : sans cela elle grandissait à chaque lecture (« plus de 3 j »).</summary>
     public const double MaxLowerBoundHours = 24;
 
+    /// <summary>Remontée (en points) tolérée comme bruit de mesure en décharge ; au-delà, c'est une recharge.</summary>
+    public const int NoiseTolerance = 2;
+
     readonly object _sync = new(); // Apply tourne sur un thread de travail, SamplesFor sur le thread d'interface
     readonly string _path;
     readonly Store _store;
@@ -95,8 +98,14 @@ public sealed class AutonomyEstimator
                 bool charging = r.Charge == ChargeState.Charging;
                 bool plugged = charging || r.Charge == ChargeState.Full;
 
+                // Bruit de mesure : certains appareils (souris et casques Razer, jauges en tension) oscillent de 1 à 2 points
+                // autour du vrai niveau. Une remontée de NoiseTolerance points ou moins n'est PAS une recharge : on garde
+                // l'historique et le niveau le plus bas. Sans cela, chaque oscillation effaçait la mesure et l'autonomie remontait.
+                if (!plugged && list.Count > 0 && p > list[^1].P && p - list[^1].P <= NoiseTolerance)
+                    p = list[^1].P;
+
                 if (plugged || (list.Count > 0 && p > list[^1].P))
-                    list.Clear(); // en charge, ou niveau remonté : nouvelle période de décharge
+                    list.Clear(); // en charge, ou niveau vraiment remonté : nouvelle période de décharge
 
                 if (list.Count == 0 || (r.At - list[^1].T).TotalSeconds >= 45)
                     list.Add(new Sample(r.At, p));

@@ -46,11 +46,13 @@ public sealed class AutonomyRatchet
                     double gap = (r.At - prev.At).TotalHours;
                     // niveau remonté (charge) ou longue absence (PC éteint, application fermée) : on repart de la nouvelle
                     // estimation. Sans cela, 48 h d'absence retiraient 48 h à la durée et affichaient « 0 h » jusqu'à la charge.
-                    if (p > prev.Percent || gap > MaxGapHours || gap < 0) { }
+                    // Une remontée de AutonomyEstimator.NoiseTolerance points ou moins est du bruit de mesure (Razer…) : le garde-fou reste actif.
+                    if (p > prev.Percent + AutonomyEstimator.NoiseTolerance || gap > MaxGapHours || gap < 0) { }
                     else
                     {
                         double elapsed = Math.Max(0, (r.At - prev.At).TotalHours);
                         shown = Math.Min(hours, Math.Max(0, prev.Hours - elapsed));
+                        p = Math.Min(p, prev.Percent); // pas de dérive : on mémorise le niveau le plus bas
                     }
                 }
                 _last[r.Id] = new Entry(p, shown, r.At);
