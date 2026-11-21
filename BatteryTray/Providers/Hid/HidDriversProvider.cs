@@ -56,6 +56,10 @@ public sealed class HidDriversProvider : IBatteryProvider
         ("Chimera", ChimeraDriver.Poll),
         ("DARKRIM", DarkrimDriver.Poll),
         ("BEITONG", BeitongDriver.Poll),
+        ("DAREU", DareuDriver.Poll),
+        ("Machenike", MachenikeDriver.Poll),
+        ("Darmoshark", DarmosharkDriver.Poll),
+        ("MAONO", MaonoDriver.Poll),
         ("Logitech G435", LogitechG435Driver.Poll),
         ("Logitech HID++ (compléments)", LogitechExtraDriver.Poll),
     };
