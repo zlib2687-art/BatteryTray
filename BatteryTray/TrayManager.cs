@@ -68,6 +68,7 @@ public sealed class TrayManager : IDisposable, IToastSink
             item.Click += (_, _) => _onLanguage(c);
             lang.DropDownItems.Add(item);
         }
+        lang.DropDown.MaximumSize = new Size(0, 280); // liste courte : on y défile (molette ou flèches) pour voir les 20 langues
         _menu.Items.Add(lang);
 
         var low = new ToolStripMenuItem(Loc.T("menu.notifyLow")) { CheckOnClick = true, Checked = _settings.NotifyLow };
