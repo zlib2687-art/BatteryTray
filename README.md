@@ -194,6 +194,19 @@ de la collection HID) et abandonne si la réponse n'a pas le format attendu.
 | **NuPhy** | Clavier WH80 (USB) |
 | **NZXT** | Souris Lift Elite Wireless |
 | **Rapoo** | Souris VT0 à VT9 (rapports passifs, jusqu'à 5 s d'attente) |
+| **Arbiter Studio** | Souris Akitsu (câble et récepteur 8K, trois versions) |
+| **Areson / Redragon** | Souris M913 Impact Elite, M915RGB-WL (récepteurs FA07 / FA08) |
+| **Chimera** | Souris Chimera V2 |
+| **DARKRIM** | Casque SHADOW (récepteur) |
+| **BEITONG** | Manettes KP20 et KP40D (récepteurs 2,4 GHz) |
+| **DAREU / Sharkoon** | Souris EM901X, A980 Pro (Togran), Sharkoon SGM50W, clavier A84 |
+| **Machenike** | Souris L7 Arctic / L7 Mix |
+| **Darmoshark** | Souris M3, M3S, M3S Pro |
+| **MAONO** | Microphone PD200W (récepteur) |
+| **MOONDROP** | Casque GM01 Pro |
+| **Niceboy** | Souris MW400 |
+| **Ninjutso** | Souris Sora V2, Ten / Ten Air |
+| **Sprime** | Souris PM1 |
 
 **Ces pilotes n'ont pas été essayés sur du matériel** (aucun de ces appareils n'est branché sur le PC de l'auteur) : leur analyse de
 trames est vérifiée par des tests sur des trames synthétiques, et le comportement réel (délais, réponses) reste à confirmer par les
