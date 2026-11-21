@@ -53,7 +53,8 @@ public sealed class AutonomyEstimator
     const double LearnMinSpanHours = 1.5;          // une mesure est « solide » à partir de 5 changements sur 1 h 30
     const int LearnMinPoints = 5;
     const double PriorWeight = 6;                  // poids de l'autonomie annoncée, en « changements équivalents »
-    const double LowerBoundHours = 0.25;          // 15 min sans baisse : première borne « plus de… »
+    const double MaxLearnedOverRated = 1.5;        // une vitesse apprise ne peut pas dépasser 1,5 × l'autonomie annoncée
+    const double LowerBoundHours = 0.25;         // 15 min sans baisse : première borne « plus de… »
 
     // charge (une charge est plus courte : seuils plus bas)
     const int ChargeMinPoints = 3;
@@ -169,6 +170,12 @@ public sealed class AutonomyEstimator
         {
             double n = crossings.Count;
             rate = (n * m + PriorWeight * (100.0 / ratedFull)) / (n + PriorWeight);
+        }
+        else if (measured == null && hasLearned && DeviceDefaults.RatedHoursFor(r.Name) is double ratedLearned && ratedLearned > 0)
+        {
+            // Vitesse apprise seule (juste après une charge) : elle peut venir de longues périodes de repos et donner une autonomie
+            // absurde (112 h pour un casque annoncé à 50 h). On ne s'éloigne pas de plus de 1,5 × l'autonomie annoncée.
+            rate = Math.Max(learned, 100.0 / (MaxLearnedOverRated * ratedLearned));
         }
 
         if (rate is double perHour)
