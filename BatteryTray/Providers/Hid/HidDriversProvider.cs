@@ -45,6 +45,9 @@ public sealed class HidDriversProvider : IBatteryProvider
         ("Fractal Design", FractalDriver.Poll),
         ("GameSir", GameSirDriver.Poll),
         ("GameSir SAPJoy", GameSirSapjoyDriver.Poll),
+        ("8BitDo", EightBitDoDriver.Poll),
+        ("Keychron", KeychronDriver.Poll),
+        ("MSI", MsiDriver.Poll),
         ("Logitech G435", LogitechG435Driver.Poll),
         ("Logitech HID++ (compléments)", LogitechExtraDriver.Poll),
     };
