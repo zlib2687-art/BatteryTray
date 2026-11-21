@@ -16,7 +16,7 @@ pourcentage, un flyout détaillé au clic, des notifications et une autonomie es
    *Paramètres → Personnalisation → Barre des tâches → Autres icônes de barre d'état système* et activez
    BatteryTray (ou glissez les icônes du menu ^ vers la barre). Une application ne peut pas le faire à votre place.
 
-Le fichier fait environ **69 Mo** (il embarque .NET, compressé : rien d'autre à installer). Il n'est pas signé : Windows peut
+Le fichier fait environ **160 Mo** (il embarque .NET, volontairement non compressé : l'application consomme ainsi ~22 Mo de RAM au lieu de ~64 Mo ; rien d'autre à installer). Il n'est pas signé : Windows peut
 afficher un avertissement SmartScreen (« Informations complémentaires » → « Exécuter quand même »).
 
 Installation silencieuse : `BatteryTray-Setup.exe /silent`.

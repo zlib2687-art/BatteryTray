@@ -1,6 +1,6 @@
 ﻿# Construit l'installateur BatteryTray-Setup.exe (autonome : aucun .NET à installer).
 # Usage :  powershell -ExecutionPolicy Bypass -File build-installer.ps1
-# Résultat : dist\BatteryTray-Setup.exe  (le même fichier sert d'installateur et de programme, compressé)
+# Résultat : dist\BatteryTray-Setup.exe  (le même fichier sert d'installateur et de programme, non compressé : moins de RAM)
 #            dist\BatteryTray-Portable.zip  (version portable : BatteryTray.exe à lancer sans installation)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -14,7 +14,7 @@ New-Item -ItemType Directory -Force $dist | Out-Null
 
 & $dotnet publish (Join-Path $root 'BatteryTray\BatteryTray.csproj') `
     -c Release -r win-x64 --self-contained true `
-    -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true `
+    -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=false `
     -p:DebugType=none -p:DebugSymbols=false -o $publish
 if ($LASTEXITCODE -ne 0) { throw 'Echec de dotnet publish' }
 
