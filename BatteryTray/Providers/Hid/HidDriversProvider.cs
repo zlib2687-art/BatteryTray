@@ -76,6 +76,8 @@ public sealed class HidDriversProvider : IBatteryProvider
         ("Turtle Beach", TurtleBeachDriver.Poll),
         ("Sony INZONE", SonyInzoneDriver.Poll),
         ("Autres souris (Motospeed, Xenta, Delux, Ajazz, Incott, Wraith)", MiscMiceDriver.Poll),
+        ("Pulsar", PulsarDriver.Poll),
+        ("RAWM / SADES", RawmDriver.Poll),
         ("Logitech G435", LogitechG435Driver.Poll),
         ("Logitech HID++ (compléments)", LogitechExtraDriver.Poll),
     };
