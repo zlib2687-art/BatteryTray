@@ -18,6 +18,7 @@ public sealed class HidDriversProvider : IBatteryProvider
         ("Glorious / Hitscan / G-Wolves / WLMouse", GloriousDriver.Poll),
         ("SteelSeries", SteelSeriesDriver.Poll),
         ("Razer BlackShark", RazerHeadsetDriver.Poll),
+        ("Arbiter Studio", ArbiterDriver.Poll),
         ("LAMZU", LamzuDriver.Poll),
         ("PlayStation", PlayStationDriver.Poll),
         ("Corsair", CorsairDriver.Poll),
@@ -51,6 +52,10 @@ public sealed class HidDriversProvider : IBatteryProvider
         ("NuPhy", NuphyDriver.Poll),
         ("NZXT", NzxtDriver.Poll),
         ("Rapoo", RapooDriver.Poll),
+        ("Areson / Redragon", AresonDriver.Poll),
+        ("Chimera", ChimeraDriver.Poll),
+        ("DARKRIM", DarkrimDriver.Poll),
+        ("BEITONG", BeitongDriver.Poll),
         ("Logitech G435", LogitechG435Driver.Poll),
         ("Logitech HID++ (compléments)", LogitechExtraDriver.Poll),
     };
