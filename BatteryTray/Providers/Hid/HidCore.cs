@@ -88,6 +88,8 @@ public sealed class DeviceStatus
     /// <summary>Faux si l'appareil est éteint ou hors de portée : aucune valeur n'est alors affichée.</summary>
     public bool Connected { get; set; } = true;
     public ushort Vid { get; set; }
+    /// <summary>Précision affichée à la place de « Via » quand elle est connue (ex. « docked »), sinon null.</summary>
+    public string? Detail { get; set; }
 }
 
 /// <summary>

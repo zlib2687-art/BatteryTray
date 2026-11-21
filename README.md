@@ -166,11 +166,16 @@ de la collection HID) et abandonne si la réponse n'a pas le format attendu.
 | **HyperX** | Cloud II / II Core / III / III S / Alpha / Alpha 2 / Flight / Flight S / Stinger Core / Core DTS ; souris Pulsefire Haste 2 (Core, Wireless, Mini) |
 | **Glorious / Hitscan / G-Wolves / WLMouse** | Model O / D / O- / D- / O 2 / D 2 PRO Wireless ; Hitscan Hyperlight ; G-Wolves Fenrir, HTS, HSK, HTX, HTR, VUK, Lycan, WARG… ; WLMouse YING 8K |
 | **Kysona / Pulsar / ATK / VXE / Redragon / HECATE** | Souris Kysona, Pulsar (dont X2 V3 sur 3710), ATK / VXE Dragonfly R1, Redragon M916 Pro 1K / M913 / G49, HECATE, et autres souris du protocole Compx à 17 octets |
+| **ASTRO** | Casques A50 Gen 3 / Gen 4 / A50 X (Gen 5), A20 Wireless (précise « sur la base » ; respecte le verrou d'Astro Command Center) |
+| **ASUS ROG** | Claviers Azoth / Falchion / Strix Scope II, souris Chakram / Gladius / Harpe / Keris / Pugio / Spatha / Strix (récepteur, câble ou ROG Omni Receiver), casques Pelta et Delta II, écouteurs Cetra Open (gauche / droit / boîtier) |
+| **Jabra** | Casques à protocole GN (Evolve2, Evolve3…) sur câble USB ou récepteur Link ; bases DECT exclues |
+| **JBL Quantum** | 350 / 360 / 610 (HIDV1) et 520 / 650 / 850 / 950 et variantes X (HIDV3), sur récepteur ou câble |
+| **Cooler Master** | Souris MM712 et MM731 (câble ou récepteur partagé) |
 
 **Ces pilotes n'ont pas été essayés sur du matériel** (aucun de ces appareils n'est branché sur le PC de l'auteur) : leur analyse de
 trames est vérifiée par des tests sur des trames synthétiques, et le comportement réel (délais, réponses) reste à confirmer par les
 utilisateurs de ces appareils. Un appareil de cette liste qui n'apparaît pas : lancez `BatteryTray.exe --dump` et joignez le rapport
-(sans numéro de série) à votre signalement. Les autres familles de BatteryHub (Logitech additionnels, Razer Barracuda X, ASTRO, Jabra, JBL, Cooler Master, Switch Pro, Steam Controller, ROG, MSI,
+(sans numéro de série) à votre signalement. Les autres familles de BatteryHub (Logitech additionnels, Razer Barracuda X, Switch Pro, Steam Controller, MSI,
 Keychron, Endgame, NuPhy, claviers SONiX/AULA/MCHOSE, etc.) ne sont pas encore portées.
 
 ## Licence
@@ -222,7 +227,7 @@ powershell -ExecutionPolicy Bypass -File build-installer.ps1   # produit dist\Ba
 dotnet test BatteryTray.Tests
 ```
 
-424 tests automatiques (xUnit), dont des **tests aléatoires et d'attaque** (graine fixe : fichiers corrompus, niveaux absurdes,
+447 tests automatiques (xUnit), dont des **tests aléatoires et d'attaque** (graine fixe : fichiers corrompus, niveaux absurdes,
 noms hostiles, chemins piégés, absence de toute bibliothèque réseau) et des essais de la fenêtre des paramètres dans les
 20 langues en thème clair et sombre : estimateur d'autonomie (décharge régulière, borne basse, charge, remontée du
 niveau, intervalles ignorés, vitesse mémorisée entre deux sessions), traductions (20 langues, mêmes clés,

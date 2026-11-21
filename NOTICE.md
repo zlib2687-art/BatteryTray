@@ -11,7 +11,8 @@ https://github.com/krisgfx9/Wireless-Device-Battery-Monitor
 Le code dérivé d'une œuvre GPL-3.0 doit rester sous GPL-3.0 : c'est pourquoi tout le projet l'est. Chaque fichier concerné rappelle,
 en en-tête, de quel fichier de BatteryHub il est dérivé. Les identifiants matériels (VID:PID) et les formats de trames viennent de
 ce projet, qui cite lui-même ses sources (OpenRazer, HeadsetControl, glorious-indicator, glorious-ctl, les configurateurs web des
-fabricants, et des captures fournies par des utilisateurs).
+fabricants, et des captures fournies par des utilisateurs). Pour les pilotes ASUS ROG, Jabra et Cooler Master, les sources citées sont
+peripheral-battery-tray (MIT, d'après G-Helper), BatteryTool, jabridge, le pilote GNP de HeadsetControl, coolermaster-usb-protocol et MM731-Controller.
 
 ## Ce que cela implique
 

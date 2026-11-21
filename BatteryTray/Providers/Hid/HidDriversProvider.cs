@@ -23,6 +23,11 @@ public sealed class HidDriversProvider : IBatteryProvider
         ("Corsair", CorsairDriver.Poll),
         ("HyperX", HyperXDriver.Poll),
         ("Kysona / Pulsar / ATK / VXE / Redragon / HECATE", KysonaDriver.Poll),
+        ("ASTRO", AstroDriver.Poll),
+        ("ASUS ROG", RogDriver.Poll),
+        ("Jabra", JabraDriver.Poll),
+        ("JBL Quantum", JblDriver.Poll),
+        ("Cooler Master", CoolerMasterDriver.Poll),
     };
 
     /// <summary>Durée maximale cumulée d'une lecture : au-delà, les pilotes restants sont sautés jusqu'à la lecture suivante.</summary>
@@ -49,6 +54,6 @@ public sealed class HidDriversProvider : IBatteryProvider
     public static List<BatteryReading> ToReadings(IEnumerable<DeviceStatus> statuses, DateTime now) =>
         statuses.Where(s => s.Connected && s.Percent is >= 0 and <= 100 && !string.IsNullOrWhiteSpace(s.Key))
             .Select(s => new BatteryReading("hid-" + s.Key, s.Name, s.Kind, s.Percent, s.Charging ? ChargeState.Charging : null,
-                string.IsNullOrEmpty(s.Via) ? null : s.Via, now))
+                s.Detail ?? (string.IsNullOrEmpty(s.Via) ? null : s.Via), now))
             .ToList();
 }
