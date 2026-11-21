@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 
 namespace BatteryTray;
 
@@ -36,11 +36,31 @@ public static class ReadingMerge
         return shorter.Length >= 6 && longer.Contains(shorter, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Nettoie une lecture venue d'un périphérique ou d'un pilote, en qui on n'a pas à avoir confiance : identifiant absent (rejetée),
+    /// pourcentage hors 0–100 (valeur « inconnue » renvoyée par certains appareils, ex. 255 : devient « pas de niveau », jamais
+    /// inventé), nom absent, trop long ou contenant des caractères de contrôle ou d'inversion de texte. Logique pure, testée.
+    /// </summary>
+    /// <summary>Caractères d'inversion du sens du texte (U+202A–202E, U+2066–2069) : servent à tromper l'affichage.</summary>
+    static bool IsBidiControl(char c) => c is >= (char)0x202A and <= (char)0x202E or >= (char)0x2066 and <= (char)0x2069;
+
+    public static BatteryReading? Sanitize(BatteryReading r)
+    {
+        if (r == null || string.IsNullOrWhiteSpace(r.Id)) return null;
+        var name = new string((r.Name ?? "").Where(c => !char.IsControl(c) && !IsBidiControl(c)).ToArray()).Trim();
+        if (name.Length > 60) name = name[..60].TrimEnd();
+        if (name.Length == 0) name = "?";
+        int? percent = r.Percent is int p && p is >= 0 and <= 100 ? p : null;
+        var parts = r.Parts?.Where(x => x != null).Select(x => x with { Percent = Math.Clamp(x.Percent, 0, 100) }).ToList();
+        return r with { Name = name, Percent = percent, Parts = parts };
+    }
+
     public static List<BatteryReading> Deduplicate(IEnumerable<BatteryReading> readingsInPriorityOrder)
     {
         var kept = new List<(string Name, string Source, BatteryReading Reading)>();
-        foreach (var r in readingsInPriorityOrder)
+        foreach (var raw in readingsInPriorityOrder)
         {
+            if (Sanitize(raw) is not { } r) continue;
             string name = Normalize(r.Name), source = SourceOf(r.Id);
             bool duplicate = kept.Any(k => k.Source != source && SameDevice(k.Name, name));
             if (!duplicate) kept.Add((name, source, r));

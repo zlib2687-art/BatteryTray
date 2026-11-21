@@ -24,6 +24,9 @@ public sealed class TrayManager : IDisposable, IToastSink
     readonly Action<string> _onLanguage;
 
     public event Action? IconClicked;
+    /// <summary>Double-clic gauche sur une icône (ouvre les paramètres).</summary>
+    public event Action? IconDoubleClicked;
+    readonly ClickGate _clicks = new();
 
     // Seuils de couleur (repris des réglages au démarrage et à chaque modification)
     public static int OrangeBelow { get; set; } = 40;
@@ -82,7 +85,14 @@ public sealed class TrayManager : IDisposable, IToastSink
         if (!_icons.TryGetValue(id, out var e))
         {
             e = new Entry { Tray = new NotifyIcon { ContextMenuStrip = _menu } };
-            e.Tray.MouseUp += (_, a) => { if (a.Button == MouseButtons.Left) IconClicked?.Invoke(); };
+            // clic simple : flyout ; double-clic : paramètres (le second relâchement du bouton ne doit pas rouvrir le flyout)
+            e.Tray.MouseUp += (_, a) => { if (a.Button == MouseButtons.Left && _clicks.AllowSingle(DateTime.UtcNow)) IconClicked?.Invoke(); };
+            e.Tray.MouseDoubleClick += (_, a) =>
+            {
+                if (a.Button != MouseButtons.Left) return;
+                _clicks.MarkDouble(DateTime.UtcNow);
+                IconDoubleClicked?.Invoke();
+            };
             _icons[id] = e;
         }
         return e;

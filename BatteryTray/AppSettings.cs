@@ -103,6 +103,21 @@ public sealed class AppSettings
         foreach (var key in Devices.Where(kv => kv.Value == null).Select(kv => kv.Key).ToList()) Devices.Remove(key);
         foreach (var key in Known.Where(kv => kv.Value == null).Select(kv => kv.Key).ToList()) Known.Remove(key);
         Language ??= "";
+        Order = Order.Where(id => id != null).Distinct().ToList();
+        LowNotified.RemoveWhere(id => id == null);
+        FullNotified.RemoveWhere(id => id == null);
+
+        foreach (var k in Known.Values)
+        {
+            k.Name ??= "";
+            if (!Enum.IsDefined(k.Kind)) k.Kind = DeviceKind.Other;
+            if (k.LastPercent is int lp) k.LastPercent = Math.Clamp(lp, 0, 100);
+        }
+        foreach (var d in Devices.Values)
+        {
+            if (d.LowThreshold is int low) d.LowThreshold = Math.Clamp(low, 1, 99);
+            if (d.RatedHours is double h) d.RatedHours = double.IsFinite(h) && h > 0 ? Math.Min(h, 9999) : null;
+        }
 
         PollMinutes = Math.Clamp(PollMinutes, 1, 60);
         LowThreshold = Math.Clamp(LowThreshold, 1, 99);
@@ -117,7 +132,7 @@ public sealed class AppSettings
         try
         {
             Directory.CreateDirectory(DataDir);
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
+            SafeFile.WriteAllText(FilePath, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
         }
         catch { /* les réglages ne doivent jamais faire planter l'application */ }
     }

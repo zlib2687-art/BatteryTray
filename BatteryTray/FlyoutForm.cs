@@ -1,4 +1,4 @@
-using System.Drawing.Drawing2D;
+﻿using System.Drawing.Drawing2D;
 using System.Drawing.Text;
 using System.Runtime.InteropServices;
 
@@ -16,7 +16,9 @@ namespace BatteryTray;
 sealed class FlyoutForm : Form
 {
     // repère de dessin (taille « 100 % »)
-    const int RowH = 50, HeaderH = 30, Pad = 10, W = 312, ChartExtra = 66;
+    const int RowH = 62, HeaderH = 42, Pad = 12, W = 312, ChartExtra = 66;
+    int _hoverRow = -1;
+    bool _hoverGear;
 
     public static readonly int[] ScaleChoices = { 85, 100, 125, 150 };
 
@@ -78,7 +80,7 @@ sealed class FlyoutForm : Form
     /// <summary>Zone cliquable de l'engrenage, dans le repère de dessin (côté fin de ligne : droite, ou gauche en arabe).</summary>
     static RectangleF GearRect()
     {
-        var r = new RectangleF(W - Pad - 24, 5, 22, 22);
+        var r = new RectangleF(W - Pad - 30, 6, 30, 30);
         return Loc.IsRtl ? new RectangleF(W - r.Right, r.Y, r.Width, r.Height) : r;
     }
 
@@ -98,7 +100,16 @@ sealed class FlyoutForm : Form
     {
         base.OnMouseMove(e);
         float k = K;
-        Cursor = GearRect().Contains(e.X / k, e.Y / k) || RowAt(e.Y / k) >= 0 ? Cursors.Hand : Cursors.Default;
+        bool gear = GearRect().Contains(e.X / k, e.Y / k);
+        int row = RowAt(e.Y / k);
+        Cursor = gear || row >= 0 ? Cursors.Hand : Cursors.Default;
+        if (gear != _hoverGear || row != _hoverRow) { _hoverGear = gear; _hoverRow = row; Invalidate(); } // survol : la ligne s'éclaircit
+    }
+
+    protected override void OnMouseLeave(EventArgs e)
+    {
+        base.OnMouseLeave(e);
+        if (_hoverGear || _hoverRow >= 0) { _hoverGear = false; _hoverRow = -1; Invalidate(); }
     }
 
     protected override void OnMouseClick(MouseEventArgs e)
@@ -169,6 +180,9 @@ sealed class FlyoutForm : Form
     /// <summary>Reprend la taille choisie dans les paramètres (ou après le dépliage d'une ligne).</summary>
     public void RefreshLayout() => SetItems(_items);
 
+    /// <summary>Ferme le flyout (par exemple quand un double-clic sur l'icône ouvre les paramètres).</summary>
+    public void Dismiss() => HideFlyout();
+
     void HideFlyout()
     {
         if (!Visible) return;
@@ -234,37 +248,47 @@ sealed class FlyoutForm : Form
         bool light = Theme.AppsAreLight();
         Color fg = light ? Color.FromArgb(28, 28, 28) : Color.White;
         Color sub = light ? Color.FromArgb(96, 96, 96) : Color.FromArgb(190, 190, 190);
-        Color card = light ? Color.FromArgb(215, 255, 255, 255) : Color.FromArgb(150, 40, 40, 40);
+        Color accent = light ? Color.FromArgb(0, 95, 184) : Color.FromArgb(96, 205, 255);
+        Color card = light ? Color.FromArgb(205, 255, 255, 255) : Color.FromArgb(125, 52, 52, 52);
+        Color cardHover = light ? Color.FromArgb(240, 255, 255, 255) : Color.FromArgb(165, 70, 70, 70);
+        Color cardBorder = light ? Color.FromArgb(34, 0, 0, 0) : Color.FromArgb(46, 255, 255, 255);
         Color dimmed = Color.FromArgb(125, 125, 125); // appareils hors ligne
 
         // voile de fond (teinte) pour que le texte reste lisible sur l'Acrylic
         using (var veil = new SolidBrush(light ? Color.FromArgb(170, 243, 243, 243) : Color.FromArgb(170, 28, 28, 28)))
             g.FillRectangle(veil, 0, 0, W, designHeight);
 
-        using var title = MakeFont(11f, true);
-        using var name = MakeFont(12f, true);
-        using var small = MakeFont(10f, false);
-        using var big = MakeFont(17f, true);
+        using var title = MakeFont(15f, true);
+        using var name = MakeFont(12.5f, true);
+        using var small = MakeFont(10.5f, false);
+        using var big = MakeFont(18f, true);
         using var fgBrush = new SolidBrush(fg);
         using var subBrush = new SolidBrush(sub);
 
         using (var near = Fmt(StringAlignment.Near))
-            g.DrawString(Loc.T("app.title"), title, fgBrush, M(new RectangleF(Pad + 2, 8, W - 2 * Pad - 34, 16)), near);
+            g.DrawString(Loc.T("app.title"), title, fgBrush, M(new RectangleF(Pad + 4, 10, W - 2 * Pad - 44, 22)), near);
 
-        // engrenage : ouvre les paramètres
-        using (var symbols = new Font("Segoe UI Symbol", 14f, FontStyle.Regular, GraphicsUnit.Pixel))
+        // engrenage (icône Windows 11) : ouvre les paramètres ; pastille arrondie au survol
+        var gear = GearRect();
+        if (_hoverGear)
+            using (var hp = Glyphs.RoundRect(gear, 6)) using (var hb = new SolidBrush(cardHover)) g.FillPath(hb, hp);
+        using (var icons = Gdi.IconFont(16))
         using (var center = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
-            g.DrawString("⚙", symbols, subBrush, GearRect(), center);
+        {
+            bool fluent = icons.Name.StartsWith("Segoe Fluent", StringComparison.Ordinal) || icons.Name.StartsWith("Segoe MDL2", StringComparison.Ordinal);
+            if (fluent) g.DrawString("", icons, subBrush, new RectangleF(gear.X, gear.Y + 1, gear.Width, gear.Height), center);
+            else using (var symbols = new Font("Segoe UI Symbol", 15f, FontStyle.Regular, GraphicsUnit.Pixel)) g.DrawString("⚙", symbols, subBrush, gear, center);
+        }
 
         if (_items.Count == 0)
         {
             using var near = Fmt(StringAlignment.Near);
             near.FormatFlags &= ~StringFormatFlags.NoWrap;
-            g.DrawString(Loc.T("flyout.empty"), small, subBrush, M(new RectangleF(Pad + 2, HeaderH + 8, W - 2 * Pad - 4, 30)), near);
+            g.DrawString(Loc.T("flyout.empty"), small, subBrush, M(new RectangleF(Pad + 4, HeaderH + 8, W - 2 * Pad - 8, 30)), near);
             return;
         }
 
-        const float glyphScale = 0.44f;
+        const float glyphScale = 0.38f;
         int expanded = ExpandedIndex;
         for (int i = 0; i < _items.Count; i++)
         {
@@ -276,44 +300,52 @@ sealed class FlyoutForm : Form
             Color rowFg = it.Offline ? dimmed : fg;
             Color rowSub = it.Offline ? dimmed : sub;
             using var rowFgBrush = new SolidBrush(rowFg);
-            using var rowSubBrush = new SolidBrush(rowSub);
 
             // branché / en charge : pourcentage, barre et ligne d'état en vert
             bool plugged = it.IsPlugged && !it.Offline;
             Color green = Theme.ChargingColor(light);
+            // couleur d'état : vert en charge, orange/rouge quand la batterie baisse, couleur d'accentuation sinon
+            Color status = it.Offline ? dimmed : plugged ? green : Theme.LevelColor(it.Percent, accent);
             using var lineBrush = new SolidBrush(plugged ? green : rowSub);
 
-            var rect = M(new RectangleF(Pad - 4, y, W - 2 * (Pad - 4), RowH - 6 + (open ? ChartExtra : 0)));
+            // carte arrondie avec fin liseré ; plus claire sous la souris
+            var rect = M(new RectangleF(Pad, y, W - 2 * Pad, RowH - 8 + (open ? ChartExtra : 0)));
             using (var path = Glyphs.RoundRect(rect, 8))
-            using (var cb = new SolidBrush(card))
-                g.FillPath(cb, path);
-
-            // pictogramme
-            var gr = M(new RectangleF(Pad + 4, y + 13, Glyphs.Width * glyphScale, Glyphs.Height * glyphScale));
-            Glyphs.Draw(g, it.Kind, rowFg, gr.X, gr.Y, glyphScale);
-
-            // nom
-            using (var near = Fmt(StringAlignment.Near))
-                g.DrawString(it.Name, name, rowFgBrush, M(new RectangleF(Pad + 40, y + 6, 160, 16)), near);
-
-            // ligne 2
-            using (var near = Fmt(StringAlignment.Near))
-                g.DrawString(SecondLine(it), small, lineBrush, M(new RectangleF(Pad + 40, y + 22, 176, 14)), near);
-
-            // barre de niveau
-            if (it.Percent is int p)
             {
-                var track = M(new RectangleF(Pad + 40, y + 36, 150, 3));
-                using (var tb = new SolidBrush(Color.FromArgb(70, rowSub))) g.FillRectangle(tb, track);
-                float fill = track.Width * Math.Clamp(p, 0, 100) / 100f;
-                using var lb = new SolidBrush(it.Offline ? dimmed : plugged ? green : Theme.LevelColor(p, fg));
-                g.FillRectangle(lb, rtl ? track.Right - fill : track.X, track.Y, fill, track.Height);
+                using (var cb = new SolidBrush(i == _hoverRow ? cardHover : card)) g.FillPath(cb, path);
+                using var border = new Pen(cardBorder, 1f);
+                g.DrawPath(border, path);
+            }
+
+            // pastille de l'icône, teintée de la couleur d'état
+            var tile = M(new RectangleF(Pad + 10, y + 9, 36, 36));
+            using (var tp = Glyphs.RoundRect(tile, 9))
+            using (var tb = new SolidBrush(Color.FromArgb(it.Offline ? 28 : 52, status)))
+                g.FillPath(tb, tp);
+            float gw = Glyphs.Width * glyphScale, gh = Glyphs.Height * glyphScale;
+            Glyphs.Draw(g, it.Kind, rowFg, tile.X + (tile.Width - gw) / 2, tile.Y + (tile.Height - gh) / 2, glyphScale);
+
+            // nom et ligne d'état
+            using (var near = Fmt(StringAlignment.Near))
+            {
+                g.DrawString(it.Name, name, rowFgBrush, M(new RectangleF(Pad + 56, y + 7, 160, 18)), near);
+                g.DrawString(SecondLine(it), small, lineBrush, M(new RectangleF(Pad + 56, y + 27, W - 2 * Pad - 66, 15)), near);
             }
 
             // pourcentage (« ~ » quand il est estimé)
             using var pb = new SolidBrush(it.Offline ? dimmed : plugged ? green : Theme.LevelColor(it.Percent, fg));
             using (var far = Fmt(StringAlignment.Far))
-                g.DrawString(it.PercentText, big, pb, M(new RectangleF(W - 84, y + 7, 70, 26)), far);
+                g.DrawString(it.PercentText, big, pb, M(new RectangleF(W - Pad - 12 - 74, y + 5, 74, 26)), far);
+
+            // barre de niveau arrondie
+            if (it.Percent is int p)
+            {
+                var track = M(new RectangleF(Pad + 56, y + 44, W - 2 * Pad - 56 - 12, 4));
+                using (var tp = Glyphs.RoundRect(track, 2)) using (var tb = new SolidBrush(Color.FromArgb(light ? 45 : 70, rowSub))) g.FillPath(tb, tp);
+                float fill = Math.Max(4, track.Width * Math.Clamp(p, 0, 100) / 100f);
+                var fillRect = new RectangleF(rtl ? track.Right - fill : track.X, track.Y, fill, track.Height);
+                using (var fp = Glyphs.RoundRect(fillRect, 2)) using (var lb = new SolidBrush(status)) g.FillPath(lb, fp);
+            }
 
             if (open) DrawChart(g, it, y, M, Fmt, small, sub, fg);
         }

@@ -109,7 +109,8 @@ static class Watchdog
             string script = Path.Combine(installDir, ScriptName);
             File.WriteAllText(script, ScriptText(), Encoding.Default);
 
-            string xml = Path.Combine(Path.GetTempPath(), "batterytray-tache.xml");
+            // nom imprévisible : un autre programme ne peut pas deviner le fichier et le remplacer avant que schtasks le lise
+            string xml = Path.Combine(Path.GetTempPath(), "batterytray-tache-" + Guid.NewGuid().ToString("N") + ".xml");
             File.WriteAllText(xml, TaskXml(script), Encoding.Unicode);
             try { return RunSchtasks($"/Create /TN \"{TaskName}\" /XML \"{xml}\" /F") == 0; }
             finally { try { File.Delete(xml); } catch { } }

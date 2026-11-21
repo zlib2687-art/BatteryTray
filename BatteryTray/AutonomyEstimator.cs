@@ -31,6 +31,20 @@ public sealed class AutonomyEstimator
         public Dictionary<string, List<Sample>> ChargeHistory { get; set; } = new();
         /// <summary>Vitesse de charge apprise, en % par heure.</summary>
         public Dictionary<string, double> ChargeRates { get; set; } = new();
+
+        /// <summary>Rend utilisable un fichier abîmé ou modifié à la main : listes manquantes, niveaux hors 0–100, vitesses absurdes.</summary>
+        public void Normalize()
+        {
+            History ??= new(); ChargeHistory ??= new(); Rates ??= new(); ChargeRates ??= new();
+            foreach (var map in new[] { History, ChargeHistory })
+            {
+                foreach (var key in map.Where(kv => kv.Value == null).Select(kv => kv.Key).ToList()) map.Remove(key);
+                foreach (var list in map.Values) list.RemoveAll(s => s == null || s.P < 0 || s.P > 100);
+            }
+            foreach (var rates in new[] { Rates, ChargeRates })
+                foreach (var key in rates.Where(kv => !double.IsFinite(kv.Value) || kv.Value <= 0 || kv.Value > 1000).Select(kv => kv.Key).ToList())
+                    rates.Remove(key);
+        }
     }
 
     // décharge
@@ -73,6 +87,9 @@ public sealed class AutonomyEstimator
             foreach (var r in readings)
             {
                 if (r.Percent is not int p) { result.Add(r); continue; }
+                // un niveau hors 0–100 vient d'un appareil ou d'un pilote défectueux : on ne s'en sert pas pour calculer
+                // (et surtout pas pour compter des « franchissements » entre -2 milliards et +2 milliards)
+                if (p is < 0 or > 100 || r.Id == null) { result.Add(r); continue; }
 
                 if (!_store.History.TryGetValue(r.Id, out var list)) _store.History[r.Id] = list = new List<Sample>();
                 bool charging = r.Charge == ChargeState.Charging;
@@ -197,7 +214,7 @@ public sealed class AutonomyEstimator
             if (File.Exists(path))
             {
                 var store = JsonSerializer.Deserialize<Store>(File.ReadAllText(path));
-                if (store is { Version: CurrentVersion }) return store;
+                if (store is { Version: CurrentVersion }) { store.Normalize(); return store; }
             }
         }
         catch { /* fichier absent ou corrompu : on repart de zéro */ }
@@ -209,7 +226,7 @@ public sealed class AutonomyEstimator
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-            File.WriteAllText(_path, JsonSerializer.Serialize(_store));
+            SafeFile.WriteAllText(_path, JsonSerializer.Serialize(_store));
         }
         catch { /* l'historique est facultatif */ }
     }

@@ -1,4 +1,4 @@
-namespace BatteryTray;
+﻿namespace BatteryTray;
 
 /// <summary>
 /// Textes de l'écran de paramètres et de l'autonomie « plus de… » / « annoncée », fusionnés dans les
@@ -30,6 +30,7 @@ public static partial class Loc
             ["autonomy.rated"] = "(annoncée)",
             ["set.title"] = "Paramètres de BatteryTray",
             ["set.general"] = "Général",
+            ["set.display"] = "Affichage",
             ["set.language"] = "Langue",
             ["set.poll"] = "Actualisation",
             ["set.size"] = "Taille du flyout",
@@ -68,6 +69,7 @@ public static partial class Loc
             ["autonomy.rated"] = "(rated)",
             ["set.title"] = "BatteryTray settings",
             ["set.general"] = "General",
+            ["set.display"] = "Display",
             ["set.language"] = "Language",
             ["set.poll"] = "Refresh",
             ["set.size"] = "Flyout size",
@@ -106,6 +108,7 @@ public static partial class Loc
             ["autonomy.rated"] = "(anunciada)",
             ["set.title"] = "Ajustes de BatteryTray",
             ["set.general"] = "General",
+            ["set.display"] = "Pantalla",
             ["set.language"] = "Idioma",
             ["set.poll"] = "Actualización",
             ["set.size"] = "Tamaño del panel",
@@ -144,6 +147,7 @@ public static partial class Loc
             ["autonomy.rated"] = "(anunciada)",
             ["set.title"] = "Definições do BatteryTray",
             ["set.general"] = "Geral",
+            ["set.display"] = "Ecrã",
             ["set.language"] = "Idioma",
             ["set.poll"] = "Atualização",
             ["set.size"] = "Tamanho do painel",
@@ -182,6 +186,7 @@ public static partial class Loc
             ["autonomy.rated"] = "（标称）",
             ["set.title"] = "BatteryTray 设置",
             ["set.general"] = "常规",
+            ["set.display"] = "显示",
             ["set.language"] = "语言",
             ["set.poll"] = "刷新",
             ["set.size"] = "弹出窗口大小",
@@ -220,6 +225,7 @@ public static partial class Loc
             ["autonomy.rated"] = "(заявлено)",
             ["set.title"] = "Параметры BatteryTray",
             ["set.general"] = "Общие",
+            ["set.display"] = "Экран",
             ["set.language"] = "Язык",
             ["set.poll"] = "Обновление",
             ["set.size"] = "Размер окна",
@@ -258,6 +264,7 @@ public static partial class Loc
             ["autonomy.rated"] = "(المعلنة)",
             ["set.title"] = "إعدادات BatteryTray",
             ["set.general"] = "عامّ",
+            ["set.display"] = "العرض",
             ["set.language"] = "اللغة",
             ["set.poll"] = "التحديث",
             ["set.size"] = "حجم النافذة",

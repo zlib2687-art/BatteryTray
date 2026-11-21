@@ -104,13 +104,8 @@ static class Installer
 
             // le programme en cours d'exécution ne peut pas se supprimer lui-même : un cmd caché le fait après sa sortie,
             // avec une seconde tentative si le premier essai tombe pendant que le fichier est encore verrouillé
-            string dir = InstallDir;
-            Process.Start(new ProcessStartInfo("cmd.exe",
-                $"/c ping 127.0.0.1 -n 3 >nul & rmdir /s /q \"{dir}\" 2>nul & if exist \"{dir}\" (ping 127.0.0.1 -n 6 >nul & rmdir /s /q \"{dir}\" 2>nul)")
-            {
-                CreateNoWindow = true,
-                UseShellExecute = false,
-            });
+            if (CleanupCommand(InstallDir) is { } cleanup)
+                Process.Start(new ProcessStartInfo("cmd.exe", cleanup) { CreateNoWindow = true, UseShellExecute = false });
             return 0;
         }
         catch (Exception e)
@@ -119,6 +114,23 @@ static class Installer
                 MessageBox.Show(e.Message, Loc.T("install.title"), MessageBoxButtons.OK, MessageBoxIcon.Error);
             return 2;
         }
+    }
+
+    /// <summary>
+    /// Commande cmd qui supprime le dossier d'installation après la sortie du programme. Refusée (null) si le chemin n'est pas
+    /// exactement un dossier « ...\Programs\BatteryTray » sans caractère spécial de cmd : une variable d'environnement
+    /// détournée ne doit pas pouvoir faire supprimer autre chose ni exécuter une autre commande. Logique pure, testée.
+    /// </summary>
+    internal static string? CleanupCommand(string dir)
+    {
+        try
+        {
+            string full = Path.GetFullPath(dir).TrimEnd('\\');
+            if (full.IndexOfAny(new[] { '"', '&', '|', '<', '>', '^', '%', '\r', '\n' }) >= 0) return null; // les parenthèses sont permises (« Jean (pro) ») : le chemin est entre guillemets
+            if (!full.EndsWith(@"\Programs\" + AppName, StringComparison.OrdinalIgnoreCase)) return null;
+            return $"/c ping 127.0.0.1 -n 3 >nul & rmdir /s /q \"{full}\" 2>nul & if exist \"{full}\" (ping 127.0.0.1 -n 6 >nul & rmdir /s /q \"{full}\" 2>nul)";
+        }
+        catch { return null; }
     }
 
     // ------------------------------------------------------------------ démarrage avec Windows

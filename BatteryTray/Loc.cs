@@ -101,11 +101,14 @@ public static partial class Loc
 
     /// <summary>Arrondit une borne basse vers le bas (heures entières, ou pas de 5 min sous 2 h) : on ne promet jamais plus.</summary>
     public static double FloorForBound(double hours) =>
-        hours >= 2 ? Math.Floor(hours) : Math.Max(5.0 / 60, Math.Floor(hours * 12) / 12);
+        !double.IsFinite(hours) ? 5.0 / 60
+        : hours >= 2 ? Math.Floor(hours) : Math.Max(5.0 / 60, Math.Floor(hours * 12) / 12);
 
     /// <summary>Durée à la minute près : « 5 h 31 min », « 2 j 5 h », « 40 min ».</summary>
     public static string Duration(double hours)
     {
+        // valeur invalide (NaN, infinie, négative, démesurée) : jamais de texte absurde ni de dépassement d'entier
+        hours = double.IsNaN(hours) ? 0 : Math.Clamp(hours, 0, 24 * 999);
         int total = Math.Max(1, (int)Math.Round(hours * 60));
         int d = total / 1440, h = total % 1440 / 60, m = total % 60;
         var parts = new List<string>();

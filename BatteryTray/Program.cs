@@ -93,6 +93,20 @@ static class Program
             return 0;
         }
 
+        // « --settings-preview fichier.png [light|dark] [page 0-3] » : dessine l'écran de paramètres dans une image (test visuel)
+        int sp = Array.IndexOf(args, "--settings-preview");
+        if (sp >= 0 && sp + 1 < args.Length)
+        {
+            if (args.Contains("light")) SettingsTheme.Forced = true;
+            else if (args.Contains("dark")) SettingsTheme.Forced = false;
+            int page = args.Skip(sp + 2).Select(a => int.TryParse(a, out int n) ? n : -1).FirstOrDefault(n => n >= 0);
+            using var form = new SettingsForm(AppSettings.Current, () => { });
+            form.SelectPage(page);
+            using var shot = form.RenderPreview();
+            shot.Save(args[sp + 1]);
+            return 0;
+        }
+
         // « BatteryTray.exe --test-notification low|full|test » : demande à l'instance en cours d'envoyer une notification de test
         int tn = Array.IndexOf(args, "--test-notification");
         if (tn >= 0)
@@ -194,6 +208,7 @@ sealed class TrayApp : ApplicationContext
         _tray.Reserve(_settings.Known.Keys.OrderBy(k => k, StringComparer.Ordinal)); // ordre de création stable = épinglage stable
         _notifier = new Notifier(_settings, _tray);
         _tray.IconClicked += ToggleFlyout;
+        _tray.IconDoubleClicked += () => { _flyout?.Dismiss(); OpenSettings(); }; // double-clic sur une icône : paramètres
         _timer.Interval = Math.Max(1, _settings.PollMinutes) * 60 * 1000;
         _timer.Tick += (_, _) => Refresh();
         _timer.Start();
@@ -378,7 +393,10 @@ sealed class TrayApp : ApplicationContext
             Directory.CreateDirectory(AppSettings.DataDir);
             string file = Path.Combine(AppSettings.DataDir, "journal.txt");
             if (File.Exists(file) && new FileInfo(file).Length > 200_000) File.Delete(file); // journal local, borné
-            File.AppendAllText(file, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} {line}{Environment.NewLine}");
+            // une ligne = une entrée : un nom d'appareil contenant un saut de ligne ne peut pas fabriquer de fausses lignes
+            string clean = line.Replace('\r', ' ').Replace('\n', ' ').Replace('\0', ' ');
+            if (clean.Length > 400) clean = clean[..400] + "…";
+            File.AppendAllText(file, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} {clean}{Environment.NewLine}");
         }
         catch { /* le journal est facultatif */ }
     }

@@ -71,7 +71,7 @@ public sealed class AutonomyRatchet
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-            File.WriteAllText(_path, JsonSerializer.Serialize(_last));
+            SafeFile.WriteAllText(_path, JsonSerializer.Serialize(_last));
         }
         catch { /* sans gravité : l'état sera réécrit à la prochaine lecture */ }
     }
@@ -81,7 +81,12 @@ public sealed class AutonomyRatchet
         try
         {
             if (path != null && File.Exists(path))
-                return JsonSerializer.Deserialize<Dictionary<string, Entry>>(File.ReadAllText(path)) ?? new();
+            {
+                var loaded = JsonSerializer.Deserialize<Dictionary<string, Entry>>(File.ReadAllText(path)) ?? new();
+                // un fichier abîmé ou modifié à la main ne doit pas faire échouer les lectures suivantes
+                return loaded.Where(kv => kv.Value is { Percent: >= 0 and <= 100 } e && double.IsFinite(e.Hours) && e.Hours >= 0)
+                             .ToDictionary(kv => kv.Key, kv => kv.Value);
+            }
         }
         catch { }
         return new();

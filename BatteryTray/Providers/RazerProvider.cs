@@ -30,7 +30,8 @@ public sealed class RazerProvider : IBatteryProvider
         if (h == new IntPtr(-1)) return null;
         try
         {
-            int len = Math.Max(dev.GetMaxFeatureReportLength(), 91);
+            // longueur annoncée par le périphérique : bornée, un pilote défectueux ne doit pas nous faire allouer des Mo
+            int len = Math.Clamp(dev.GetMaxFeatureReportLength(), 91, 4096);
             foreach (byte tid in new byte[] { 0x1F, 0xFF, 0x3F, 0x9F })
             {
                 var bat = Query(h, len, tid, 0x80);

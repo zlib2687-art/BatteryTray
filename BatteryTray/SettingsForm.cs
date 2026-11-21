@@ -3,7 +3,9 @@ using System.Globalization;
 namespace BatteryTray;
 
 /// <summary>
-/// Écran de paramètres : langue, actualisation, démarrage avec Windows, notifications, seuils de couleur,
+/// Écran de paramètres, dans l'esprit des Paramètres de Windows 11 : navigation à gauche (Général, Affichage,
+/// Notifications, Appareils), un réglage par carte, interrupteurs, thème clair ou sombre selon le système.
+/// Contenu : langue, actualisation, démarrage avec Windows, taille du flyout, couleurs du pourcentage, notifications,
 /// et pour chaque appareil : afficher/masquer, renommer, seuil d'alerte, autonomie annoncée, ordre
 /// (glisser-déposer ou boutons). Les modifications ne sont appliquées qu'avec « OK ».
 /// </summary>
@@ -13,17 +15,25 @@ sealed class SettingsForm : Form
 
     readonly AppSettings _s;
     readonly Action _applied;
+    readonly SettingsTheme _t = SettingsTheme.Current();
 
-    readonly ComboBox _lang = new() { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill };
-    readonly ComboBox _poll = new() { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill };
-    readonly ComboBox _size = new() { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill };
-    readonly CheckBox _startup = new() { AutoSize = true };
-    readonly CheckBox _notifyLow = new() { AutoSize = true };
-    readonly CheckBox _notifyFull = new() { AutoSize = true };
-    readonly NumericUpDown _lowThreshold = new() { Minimum = 1, Maximum = 99, Width = 80 };
-    readonly NumericUpDown _orange = new() { Minimum = 2, Maximum = 100, Width = 80 };
-    readonly NumericUpDown _red = new() { Minimum = 1, Maximum = 99, Width = 80 };
+    readonly ModernCombo _lang = new() { Width = 250 };
+    readonly ModernCombo _poll = new() { Width = 250 };
+    readonly ModernCombo _size = new() { Width = 250 };
+    readonly ToggleSwitch _startup = new();
+    readonly ToggleSwitch _notifyLow = new();
+    readonly ToggleSwitch _notifyFull = new();
+    readonly ModernNumeric _lowThreshold = new() { Minimum = 1, Maximum = 99, Width = 120 };
+    readonly ModernNumeric _orange = new() { Minimum = 2, Maximum = 100, Width = 120 };
+    readonly ModernNumeric _red = new() { Minimum = 1, Maximum = 99, Width = 120 };
     readonly DataGridView _grid = new();
+
+    readonly List<(NavItem Nav, Panel Page, string Title)> _pages = new();
+    readonly Label _header = new();
+    readonly Panel _content = new();
+    readonly Panel _nav = new();
+    readonly Panel _footer = new();
+    ModernButton _ok = null!, _cancel = null!;
 
     public SettingsForm(AppSettings settings, Action applied)
     {
@@ -32,116 +42,211 @@ sealed class SettingsForm : Form
 
         Text = Loc.T("set.title");
         StartPosition = FormStartPosition.CenterScreen;
-        FormBorderStyle = FormBorderStyle.FixedDialog;
+        FormBorderStyle = FormBorderStyle.Sizable;
         MaximizeBox = false;
         MinimizeBox = false;
-        ClientSize = new Size(660, 740);
-        Font = new Font(Loc.FontFamily, 9f);
-        if (Loc.IsRtl) { RightToLeft = RightToLeft.Yes; RightToLeftLayout = true; }
+        ClientSize = new Size(980, 680);
+        MinimumSize = new Size(820, 560);
+        BackColor = _t.Back;
+        ForeColor = _t.Text;
+        Font = new Font(Loc.FontFamily, 9.75f);
+        if (Loc.IsRtl) RightToLeft = RightToLeft.Yes;
+        DoubleBuffered = true;
 
         BuildLayout();
         LoadValues();
+        SelectPage(0);
+    }
+
+    // ------------------------------------------------------------------ fenêtre
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+        try
+        {
+            int v = _t.Light ? 0 : 1; Gdi.DwmSetWindowAttribute(Handle, 20, ref v, 4);          // barre de titre sombre
+            v = Gdi.ColorRef(_t.Back); Gdi.DwmSetWindowAttribute(Handle, 35, ref v, 4);          // couleur de la barre de titre
+            v = Gdi.ColorRef(_t.Text); Gdi.DwmSetWindowAttribute(Handle, 36, ref v, 4);          // couleur de son texte
+        }
+        catch { /* Windows plus ancien : barre de titre classique */ }
     }
 
     // ------------------------------------------------------------------ construction
     void BuildLayout()
     {
-        var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5, Padding = new Padding(12) };
-        root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); // sinon la colonne s'élargit au-delà de la fenêtre
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        Controls.Add(root);
+        bool rtl = Loc.IsRtl;
 
-        // --- Général
-        var general = Group(Loc.T("set.general"), out var gt);
-        AddRow(gt, Loc.T("set.language"), _lang);
-        AddRow(gt, Loc.T("set.poll"), _poll);
-        AddRow(gt, Loc.T("set.size"), _size);
-        AddRow(gt, "", _startup);
-        _startup.Text = Loc.T("set.startup");
-        root.Controls.Add(general, 0, 0);
+        // Dock : le dernier contrôle ajouté est placé en premier, le contrôle « Fill » doit donc être ajouté d'abord.
+        _content.Dock = DockStyle.Fill;
+        _content.BackColor = _t.Back;
+        _content.Padding = new Padding(8, 18, 24, 0);
+        Controls.Add(_content);
 
-        // --- Notifications + couleurs
-        var notifs = Group(Loc.T("set.notifs"), out var nt);
-        _notifyLow.Text = Loc.T("menu.notifyLow");
-        _notifyFull.Text = Loc.T("menu.notifyFull");
-        AddRow(nt, "", _notifyLow);
-        AddRow(nt, "", _notifyFull);
-        AddRow(nt, Loc.T("set.lowThreshold"), _lowThreshold);
-        root.Controls.Add(notifs, 0, 1);
+        _nav.Dock = rtl ? DockStyle.Right : DockStyle.Left;
+        _nav.Width = 250;
+        _nav.BackColor = _t.Back;
+        Controls.Add(_nav);
 
-        var colors = Group(Loc.T("set.colors"), out var ct);
-        AddRow(ct, Loc.T("set.orange"), _orange);
-        AddRow(ct, Loc.T("set.red"), _red);
-        root.Controls.Add(colors, 0, 2);
+        _footer.Dock = DockStyle.Bottom;
+        _footer.Height = 68;
+        _footer.BackColor = _t.Footer;
+        Controls.Add(_footer);
 
-        // --- Appareils
-        var devices = new GroupBox { Text = Loc.T("set.devices"), Dock = DockStyle.Fill, Padding = new Padding(8) };
-        var dt = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 2 };
-        dt.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        dt.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        dt.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        dt.RowStyles.Add(new RowStyle(SizeType.Absolute, 74));
-        devices.Controls.Add(dt);
+        BuildNav();
+        BuildFooter();
+
+        _header.Dock = DockStyle.Top;
+        _header.Height = 62;
+        _header.Font = new Font(Loc.FontFamily, 20f, FontStyle.Bold);
+        _header.ForeColor = _t.Text;
+        _header.BackColor = _t.Back;
+        _header.TextAlign = ContentAlignment.MiddleLeft; // en arabe, RightToLeft inverse déjà l'alignement
+        _header.Padding = new Padding(rtl ? 0 : 16, 0, rtl ? 16 : 0, 0);
+
+        // Général
+        var general = NewPage();
+        AddCards(general,
+            Row(Loc.T("set.language"), _lang),
+            Row(Loc.T("set.poll"), _poll),
+            Row(Loc.T("set.startup"), _startup));
+        AddPage("", Loc.T("set.general"), general);
+
+        // Affichage
+        var display = NewPage();
+        AddCards(display,
+            Row(Loc.T("set.size"), _size),
+            Section(Loc.T("set.colors")),
+            Row(Loc.T("set.orange"), _orange),
+            Row(Loc.T("set.red"), _red));
+        AddPage("", Loc.T("set.display"), display);
+
+        // Notifications
+        var notifs = NewPage();
+        AddCards(notifs,
+            Row(Loc.T("menu.notifyLow"), _notifyLow),
+            Row(Loc.T("menu.notifyFull"), _notifyFull),
+            Row(Loc.T("set.lowThreshold"), _lowThreshold));
+        AddPage("", Loc.T("set.notifs"), notifs);
+
+        // Appareils
+        var devices = NewPage();
+        devices.AutoScroll = false;
+        devices.Controls.Add(BuildDevicesCard());
+        AddPage("", Loc.T("set.devices"), devices);
+
+        _content.Controls.Add(_header); // en dernier : il se place tout en haut
+
+        foreach (var c in new[] { _lang, _poll, _size }) c.Palette = _t;
+        foreach (var n in new[] { _lowThreshold, _orange, _red }) n.Palette = _t;
+    }
+
+    void BuildNav()
+    {
+        bool rtl = Loc.IsRtl;
+        var title = new Label
+        {
+            Text = "BatteryTray", AutoSize = false, Height = 44, Width = 226, Left = 12, Top = 14,
+            Font = new Font(Loc.FontFamily, 12.5f, FontStyle.Bold), ForeColor = _t.Text, BackColor = _t.Back,
+            TextAlign = ContentAlignment.MiddleLeft,
+            Padding = new Padding(rtl ? 0 : 8, 0, rtl ? 8 : 0, 0),
+        };
+        _nav.Controls.Add(title);
+    }
+
+    void AddPage(string glyph, string title, Panel page)
+    {
+        var item = new NavItem { Palette = _t, Glyph = glyph, Text = title, Width = 226, Left = 12, Top = 66 + _pages.Count * 44, BackColor = _t.Back };
+        int index = _pages.Count;
+        item.Click += (_, _) => SelectPage(index);
+        _nav.Controls.Add(item);
+        _content.Controls.Add(page);
+        _pages.Add((item, page, title));
+    }
+
+    public void SelectPage(int index)
+    {
+        index = Math.Clamp(index, 0, _pages.Count - 1);
+        for (int i = 0; i < _pages.Count; i++)
+        {
+            _pages[i].Nav.SetSelected(i == index);
+            _pages[i].Page.Visible = i == index;
+        }
+        _header.Text = _pages[index].Title;
+    }
+
+    Panel NewPage() => new() { Dock = DockStyle.Fill, AutoScroll = true, BackColor = _t.Back, Visible = false, Padding = new Padding(0, 0, 0, 8) };
+
+    /// <summary>Ajoute les cartes dans l'ordre d'affichage (le premier ajouté à un Dock « Top » serait sinon tout en bas).</summary>
+    static void AddCards(Panel page, params Control[] cards)
+    {
+        foreach (var c in cards.Reverse()) page.Controls.Add(c);
+    }
+
+    Card Row(string title, params Control[] trailing)
+    {
+        var card = new Card(_t) { Title = title, Font = Font };
+        foreach (var c in trailing)
+        {
+            if (c is ToggleSwitch ts) ts.Palette = _t;
+            card.AddTrailing(c);
+        }
+        return card;
+    }
+
+    Control Section(string text) => new Label
+    {
+        Text = text, Dock = DockStyle.Top, Height = 40, ForeColor = _t.Text, BackColor = _t.Back,
+        Font = new Font(Loc.FontFamily, 10.5f, FontStyle.Bold), TextAlign = ContentAlignment.BottomLeft,
+        Padding = new Padding(4, 0, 4, 6),
+    };
+
+    Control BuildDevicesCard()
+    {
+        var card = new Card(_t, 100) { Dock = DockStyle.Fill, Font = Font, Padding = new Padding(2, 2, 2, Card.Gap + 2) };
+        var table = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, BackColor = _t.Card, Padding = new Padding(12, 10, 12, 6) };
+        table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        table.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        table.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
+        table.RowStyles.Add(new RowStyle(SizeType.Absolute, 64));
+        card.Controls.Add(table);
 
         ConfigureGrid();
-        dt.Controls.Add(_grid, 0, 0);
+        table.Controls.Add(_grid, 0, 0);
 
-        var moves = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, AutoSize = true, WrapContents = false, Margin = new Padding(6, 0, 0, 0) };
-        var up = new Button { Text = Loc.T("set.up"), AutoSize = true, MinimumSize = new Size(90, 28) };
-        var down = new Button { Text = Loc.T("set.down"), AutoSize = true, MinimumSize = new Size(90, 28) };
+        // boutons sous la liste : la liste garde toute la largeur (les en-têtes de colonnes ne sont plus coupés)
+        var moves = new FlowLayoutPanel { FlowDirection = FlowDirection.LeftToRight, Dock = DockStyle.Fill, WrapContents = false, BackColor = _t.Card, Padding = new Padding(0, 8, 0, 0) };
+        var up = new ModernButton { Palette = _t, Text = Loc.T("set.up"), Width = 120, Height = 34, BackColor = _t.Card, Margin = new Padding(0, 0, 8, 0) };
+        var down = new ModernButton { Palette = _t, Text = Loc.T("set.down"), Width = 120, Height = 34, BackColor = _t.Card, Margin = new Padding(0) };
         up.Click += (_, _) => MoveSelected(-1);
         down.Click += (_, _) => MoveSelected(+1);
         moves.Controls.Add(up);
         moves.Controls.Add(down);
-        dt.Controls.Add(moves, 1, 0);
+        table.Controls.Add(moves, 0, 1);
 
-        var hint = new Label { Text = Loc.T("set.hint"), Dock = DockStyle.Fill, ForeColor = SystemColors.GrayText };
-        dt.Controls.Add(hint, 0, 1);
-        dt.SetColumnSpan(hint, 2);
-        root.Controls.Add(devices, 0, 3);
-
-        // --- Boutons
-        var buttons = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.RightToLeft, AutoSize = true };
-        var ok = new Button { Text = Loc.T("set.ok"), DialogResult = DialogResult.OK, MinimumSize = new Size(90, 30) };
-        var cancel = new Button { Text = Loc.T("set.cancel"), DialogResult = DialogResult.Cancel, MinimumSize = new Size(90, 30) };
-        ok.Click += (_, _) => { if (Commit()) Close(); };
-        cancel.Click += (_, _) => Close();
-        buttons.Controls.Add(cancel);
-        buttons.Controls.Add(ok);
-        root.Controls.Add(buttons, 0, 4);
-        AcceptButton = ok;
-        CancelButton = cancel;
+        var hint = new Label { Text = Loc.T("set.hint"), Dock = DockStyle.Fill, ForeColor = _t.SubText, BackColor = _t.Card, Padding = new Padding(2, 4, 2, 0) };
+        table.Controls.Add(hint, 0, 2);
+        return card;
     }
 
-    static GroupBox Group(string title, out TableLayoutPanel table)
+    void BuildFooter()
     {
-        table = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, AutoSize = true };
-        table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 62));
-        table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 38));
-        var box = new GroupBox { Text = title, Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(8, 6, 8, 8) };
-        box.Controls.Add(table);
-        return box;
+        _ok = new ModernButton { Palette = _t, Primary = true, Text = Loc.T("set.ok"), DialogResult = DialogResult.OK, BackColor = _t.Footer };
+        _cancel = new ModernButton { Palette = _t, Text = Loc.T("set.cancel"), DialogResult = DialogResult.Cancel, BackColor = _t.Footer };
+        _ok.Click += (_, _) => { if (Commit()) Close(); };
+        _cancel.Click += (_, _) => Close();
+        _footer.Controls.Add(_cancel);
+        _footer.Controls.Add(_ok);
+        _footer.Resize += (_, _) => LayoutFooter();
+        LayoutFooter();
+        AcceptButton = _ok;
+        CancelButton = _cancel;
     }
 
-    static void AddRow(TableLayoutPanel t, string label, Control c)
+    void LayoutFooter()
     {
-        int row = t.RowCount++;
-        t.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        if (label.Length > 0)
-        {
-            t.Controls.Add(new Label { Text = label, AutoSize = true, Anchor = AnchorStyles.Left, Margin = new Padding(3, 6, 3, 6) }, 0, row);
-            t.Controls.Add(c, 1, row);
-        }
-        else
-        {
-            t.Controls.Add(c, 0, row);
-            t.SetColumnSpan(c, 2);
-        }
-        c.Margin = new Padding(3, 4, 3, 4);
+        int y = (_footer.Height - _ok.Height) / 2;
+        if (Loc.IsRtl) { _ok.Location = new Point(24, y); _cancel.Location = new Point(24 + _ok.Width + 10, y); }
+        else { _ok.Location = new Point(_footer.Width - 24 - _ok.Width, y); _cancel.Location = new Point(_ok.Left - 10 - _cancel.Width, y); }
     }
 
     void ConfigureGrid()
@@ -150,12 +255,34 @@ sealed class SettingsForm : Form
         _grid.AllowUserToAddRows = false;
         _grid.AllowUserToDeleteRows = false;
         _grid.AllowUserToResizeRows = false;
-        _grid.RowHeadersWidth = 22;
+        _grid.RowHeadersWidth = 24;
         _grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
         _grid.MultiSelect = false;
-        _grid.BackgroundColor = SystemColors.Window;
         _grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
         _grid.AllowDrop = true;
+
+        // apparence moderne : sans quadrillage, lignes aérées, couleurs du thème
+        _grid.BorderStyle = BorderStyle.None;
+        _grid.BackgroundColor = _t.Card;
+        _grid.GridColor = _t.CardBorder;
+        _grid.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
+        _grid.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.None;
+        _grid.RowHeadersBorderStyle = DataGridViewHeaderBorderStyle.None;
+        _grid.EnableHeadersVisualStyles = false;
+        _grid.ColumnHeadersHeight = 40;
+        _grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+        _grid.RowTemplate.Height = 40;
+        _grid.ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
+        {
+            BackColor = _t.Card, ForeColor = _t.SubText, SelectionBackColor = _t.Card, SelectionForeColor = _t.SubText,
+            Font = new Font(Font, FontStyle.Bold), Padding = new Padding(4, 0, 0, 0),
+        };
+        _grid.RowHeadersDefaultCellStyle = new DataGridViewCellStyle { BackColor = _t.Card, SelectionBackColor = _t.Card };
+        _grid.DefaultCellStyle = new DataGridViewCellStyle
+        {
+            BackColor = _t.Card, ForeColor = _t.Text, SelectionBackColor = _t.Selection, SelectionForeColor = _t.Text,
+            Padding = new Padding(4, 0, 0, 0),
+        };
 
         _grid.Columns.Add(new DataGridViewCheckBoxColumn { HeaderText = Loc.T("set.col.show"), FillWeight = 15 }); // « Показать » se coupait à 11
         _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = Loc.T("set.col.device"), ReadOnly = true, FillWeight = 26 });
@@ -201,7 +328,7 @@ sealed class SettingsForm : Form
         int si = Array.IndexOf(FlyoutForm.ScaleChoices, _s.FlyoutScale);
         _size.SelectedIndex = si >= 0 ? si : 1;
 
-        _startup.Checked = Installer.IsStartupEnabled();
+        _startup.Checked = _s.StartWithWindows || Installer.IsStartupEnabled();
         _notifyLow.Checked = _s.NotifyLow;
         _notifyFull.Checked = _s.NotifyFull;
         _lowThreshold.Value = Math.Clamp(_s.LowThreshold, 1, 99);
@@ -267,6 +394,20 @@ sealed class SettingsForm : Form
         _s.Save();
         _applied();
         return true;
+    }
+
+    /// <summary>Aperçu pour les tests visuels : dessine la fenêtre dans une image.</summary>
+    public Bitmap RenderPreview()
+    {
+        // la fenêtre doit avoir été affichée pour que tous les contrôles se dessinent : on l'affiche hors de l'écran
+        StartPosition = FormStartPosition.Manual;
+        Location = new Point(-5000, -5000);
+        ShowInTaskbar = false;
+        Show();
+        for (int i = 0; i < 5; i++) { Application.DoEvents(); Thread.Sleep(60); }
+        var bmp = new Bitmap(Width, Height);
+        DrawToBitmap(bmp, new Rectangle(Point.Empty, Size));
+        return bmp;
     }
 
     /// <summary>

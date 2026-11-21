@@ -221,6 +221,123 @@ public class EdgeCaseTests : IDisposable
         finally { Loc.Set(before); }
     }
 
+    // ------------------------------------------------------------------ fenêtre des paramètres
+    [Fact]
+    public void SettingsWindowBuildsAndDrawsInEveryLanguageAndTheme()
+    {
+        var failures = new List<string>();
+        var thread = new Thread(() =>
+        {
+            string before = Loc.Current;
+            string oldDir = AppSettings.DataDir;
+            AppSettings.DataDir = _dir;
+            try
+            {
+                Application.EnableVisualStyles();
+                foreach (bool light in new[] { true, false })
+                foreach (var (code, _) in Loc.Languages)
+                {
+                    try
+                    {
+                        SettingsTheme.Forced = light;
+                        Loc.Set(code);
+                        var s = new AppSettings();
+                        s.Known["a"] = new KnownDevice { Name = "Casque", Kind = DeviceKind.Headset };
+                        using var form = new SettingsForm(s, () => { });
+                        for (int page = 0; page < 4; page++)
+                        {
+                            form.SelectPage(page);
+                            using var bmp = form.RenderPreview();
+                            // l'image ne doit pas être unie : le fond, les cartes et le texte se distinguent
+                            var colors = new HashSet<int>();
+                            for (int x = 0; x < bmp.Width; x += 7)
+                                for (int y = 0; y < bmp.Height; y += 7) colors.Add(bmp.GetPixel(x, y).ToArgb());
+                            if (colors.Count < 6) failures.Add($"{code}/{(light ? "clair" : "sombre")}/page {page} : image presque unie");
+                        }
+                    }
+                    catch (Exception e) { failures.Add($"{code}/{(light ? "clair" : "sombre")} : {e.GetType().Name} {e.Message}"); }
+                }
+            }
+            finally { SettingsTheme.Forced = null; Loc.Set(before); AppSettings.DataDir = oldDir; }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        Assert.True(thread.Join(TimeSpan.FromMinutes(2)), "la fenêtre ne répond pas");
+        Assert.True(failures.Count == 0, string.Join("\n", failures));
+    }
+
+    // ------------------------------------------------------------------ champs façon Windows 11
+    static void OnSta(Action a)
+    {
+        Exception? error = null;
+        var t = new Thread(() => { try { a(); } catch (Exception e) { error = e; } });
+        t.SetApartmentState(ApartmentState.STA);
+        t.Start();
+        Assert.True(t.Join(TimeSpan.FromSeconds(60)), "bloqué");
+        if (error != null) throw new Exception(error.Message, error);
+    }
+
+    static void Call(object target, string method, params object[] args) =>
+        target.GetType().GetMethod(method, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public)!
+            .Invoke(target, args);
+
+    [Fact]
+    public void ModernNumericClampsStepsAndAcceptsTyping()
+    {
+        OnSta(() =>
+        {
+            var n = new ModernNumeric { Minimum = 1, Maximum = 99, Value = 50 };
+            n.Value = 500; Assert.Equal(99, n.Value);
+            n.Value = -4; Assert.Equal(1, n.Value);
+            n.Value = 20;
+            Call(n, "OnKeyDown", new KeyEventArgs(Keys.Up)); Assert.Equal(21, n.Value);
+            Call(n, "OnKeyDown", new KeyEventArgs(Keys.Down)); Call(n, "OnKeyDown", new KeyEventArgs(Keys.Down)); Assert.Equal(19, n.Value);
+            // saisie au clavier : « 7 », « 5 » puis Entrée
+            Call(n, "OnKeyPress", new KeyPressEventArgs('7')); Call(n, "OnKeyPress", new KeyPressEventArgs('5'));
+            Call(n, "OnKeyDown", new KeyEventArgs(Keys.Enter)); Assert.Equal(75, n.Value);
+            // saisie hors bornes
+            Call(n, "OnKeyPress", new KeyPressEventArgs('9')); Call(n, "OnKeyPress", new KeyPressEventArgs('9')); Call(n, "OnKeyPress", new KeyPressEventArgs('9'));
+            Call(n, "OnKeyDown", new KeyEventArgs(Keys.Enter)); Assert.Equal(99, n.Value);
+            // lettres ignorées
+            Call(n, "OnKeyPress", new KeyPressEventArgs('x')); Call(n, "OnKeyDown", new KeyEventArgs(Keys.Enter)); Assert.Equal(99, n.Value);
+        });
+    }
+
+    [Fact]
+    public void ModernComboOpensChoosesWithKeyboardAndCloses()
+    {
+        OnSta(() =>
+        {
+            Application.EnableVisualStyles();
+            using var form = new Form { StartPosition = FormStartPosition.Manual, Location = new Point(-5000, -5000), ShowInTaskbar = false };
+            var combo = new ModernCombo { Left = 10, Top = 10 };
+            foreach (var s in new[] { "Un", "Deux", "Trois" }) combo.Items.Add(s);
+            form.Controls.Add(combo);
+            form.Show();
+            combo.SelectedIndex = 0;
+            int changes = 0; combo.SelectedIndexChanged += (_, _) => changes++;
+
+            // clavier sur le champ fermé : flèche bas = choix suivant
+            Call(combo, "OnKeyDown", new KeyEventArgs(Keys.Down)); Assert.Equal(1, combo.SelectedIndex);
+
+            // Entrée ouvre la liste ; flèche bas puis Entrée choisit « Trois » et ferme
+            Call(combo, "OnKeyDown", new KeyEventArgs(Keys.Enter));
+            var popup = Application.OpenForms.OfType<ComboPopup>().SingleOrDefault();
+            Assert.NotNull(popup);
+            Call(popup!, "OnKeyDown", new KeyEventArgs(Keys.Down));
+            Call(popup!, "OnKeyDown", new KeyEventArgs(Keys.Enter));
+            Application.DoEvents();
+            Assert.Equal(2, combo.SelectedIndex);
+            Assert.Equal("Trois", combo.SelectedItem);
+            Assert.Empty(Application.OpenForms.OfType<ComboPopup>());
+            Assert.True(changes >= 2);
+
+            // bornes
+            combo.SelectedIndex = 99; Assert.Equal(2, combo.SelectedIndex);
+            combo.SelectedIndex = -5; Assert.Equal(-1, combo.SelectedIndex);
+        });
+    }
+
     // ------------------------------------------------------------------ script de surveillance
     [Fact]
     public void SurveillanceScriptHasValidSyntaxAndDoesNothingWithoutExe()
