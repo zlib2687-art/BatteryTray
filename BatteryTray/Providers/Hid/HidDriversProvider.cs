@@ -97,6 +97,8 @@ public sealed class HidDriversProvider : IBatteryProvider
         ("HeadsetControl (facultatif)", HeadsetControlDriver.Poll),
         ("Apple AirPods / Beats (BLE)", AirPodsDriver.Poll),
         ("Fast Pair (BLE)", FastPairDriver.Poll),
+        ("Samsung Galaxy Buds (RFCOMM)", GalaxyBudsDriver.Poll),
+        ("Nothing / CMF Ear (RFCOMM)", NothingEarDriver.Poll),
         ("SONiX (AJAZZ, EPOMAKER, Lofree…)", SonixDriver.Poll),
         ("Royal Kludge", RoyalKludgeDriver.Poll),
         ("Rongyuan (Attack Shark / Ajazz / MonsGeek)", RongyuanDriver.Poll),
