@@ -64,6 +64,10 @@ public sealed class HidDriversProvider : IBatteryProvider
         ("Niceboy", NiceboyDriver.Poll),
         ("Ninjutso", NinjutsoDriver.Poll),
         ("Sprime", SprimeDriver.Poll),
+        ("Fantech Raigor", RaigorDriver.Poll),
+        ("Scyrox", ScyroxDriver.Poll),
+        ("Semico", SemicoDriver.Poll),
+        ("Sinowealth", SinowealthReceiverDriver.Poll),
         ("Logitech G435", LogitechG435Driver.Poll),
         ("Logitech HID++ (compléments)", LogitechExtraDriver.Poll),
     };
