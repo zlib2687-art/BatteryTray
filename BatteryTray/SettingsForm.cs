@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 
 namespace BatteryTray;
 
@@ -23,6 +23,7 @@ sealed class SettingsForm : Form
     readonly ToggleSwitch _startup = new();
     readonly ToggleSwitch _notifyLow = new();
     readonly ToggleSwitch _notifyFull = new();
+    readonly ToggleSwitch _brandColors = new();
     readonly ModernNumeric _lowThreshold = new() { Minimum = 1, Maximum = 99, Width = 120 };
     readonly ModernNumeric _orange = new() { Minimum = 2, Maximum = 100, Width = 120 };
     readonly ModernNumeric _red = new() { Minimum = 1, Maximum = 99, Width = 120 };
@@ -115,6 +116,7 @@ sealed class SettingsForm : Form
         var display = NewPage();
         AddCards(display,
             Row(Loc.T("set.size"), _size),
+            Row(Loc.T("set.brandColors"), _brandColors),
             Section(Loc.T("set.colors")),
             Row(Loc.T("set.orange"), _orange),
             Row(Loc.T("set.red"), _red));
@@ -329,6 +331,7 @@ sealed class SettingsForm : Form
         _size.SelectedIndex = si >= 0 ? si : 1;
 
         _startup.Checked = _s.StartWithWindows || Installer.IsStartupEnabled();
+        _brandColors.Checked = _s.BrandColors;
         _notifyLow.Checked = _s.NotifyLow;
         _notifyFull.Checked = _s.NotifyFull;
         _lowThreshold.Value = Math.Clamp(_s.LowThreshold, 1, 99);
@@ -371,6 +374,7 @@ sealed class SettingsForm : Form
         _s.Language = ((LangItem)_lang.SelectedItem!).Code;
         _s.PollMinutes = PollChoices[Math.Max(0, _poll.SelectedIndex)];
         _s.FlyoutScale = FlyoutForm.ScaleChoices[Math.Max(0, _size.SelectedIndex)];
+        _s.BrandColors = _brandColors.Checked;
         _s.NotifyLow = _notifyLow.Checked;
         _s.NotifyFull = _notifyFull.Checked;
         _s.LowThreshold = (int)_lowThreshold.Value;

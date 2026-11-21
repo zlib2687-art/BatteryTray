@@ -1,0 +1,51 @@
+﻿using System.Diagnostics;
+
+namespace BatteryTray.Providers.Hid;
+
+/// <summary>
+/// Pilotes de marques en lecture seule (souris, casques, claviers sans fil à récepteur propriétaire). Une seule énumération HID
+/// par lecture ; chaque pilote regarde les collections présentes, ne parle qu'aux appareils qu'il reconnaît exactement
+/// (VID:PID et forme de la collection) et « revendique » ce qu'il a traité. Un pilote qui échoue ou tarde ne bloque pas les autres.
+/// Pilotes portés de BatteryHub (GPL-3.0) : voir NOTICE.md et l'en-tête de chaque fichier.
+/// </summary>
+public sealed class HidDriversProvider : IBatteryProvider
+{
+    public string Name => "Pilotes HID (marques)";
+
+    /// <summary>Pilotes dans l'ordre d'exécution : les plus spécifiques d'abord.</summary>
+    public static readonly (string Name, Action<PollContext> Poll)[] Drivers =
+    {
+        ("Glorious / Hitscan / G-Wolves / WLMouse", GloriousDriver.Poll),
+        ("SteelSeries", SteelSeriesDriver.Poll),
+        ("Corsair", CorsairDriver.Poll),
+        ("HyperX", HyperXDriver.Poll),
+        ("Kysona / Pulsar / ATK / VXE / Redragon / HECATE", KysonaDriver.Poll),
+    };
+
+    /// <summary>Durée maximale cumulée d'une lecture : au-delà, les pilotes restants sont sautés jusqu'à la lecture suivante.</summary>
+    const int BudgetMs = 15_000;
+
+    public IReadOnlyList<BatteryReading> ReadAll()
+    {
+        var ctx = new PollContext(HidColl.Enumerate());
+        if (ctx.Colls.Count == 0) return Array.Empty<BatteryReading>();
+        var total = Stopwatch.StartNew();
+        foreach (var (name, poll) in Drivers)
+        {
+            if (total.ElapsedMilliseconds > BudgetMs) break;
+            try { poll(ctx); }
+            catch (Exception e) { Diagnostics.Add($"{name}: {e.GetType().Name}"); }
+        }
+        return ToReadings(ctx.Out, DateTime.Now);
+    }
+
+    /// <summary>Erreurs des derniers pilotes (pour le diagnostic <c>--list</c>), sans donnée personnelle.</summary>
+    public static List<string> Diagnostics { get; } = new();
+
+    /// <summary>Convertit les résultats : seuls les appareils connectés qui ont un niveau sont affichés (aucune valeur inventée).</summary>
+    public static List<BatteryReading> ToReadings(IEnumerable<DeviceStatus> statuses, DateTime now) =>
+        statuses.Where(s => s.Connected && s.Percent is >= 0 and <= 100 && !string.IsNullOrWhiteSpace(s.Key))
+            .Select(s => new BatteryReading("hid-" + s.Key, s.Name, s.Kind, s.Percent, s.Charging ? ChargeState.Charging : null,
+                string.IsNullOrEmpty(s.Via) ? null : s.Via, now))
+            .ToList();
+}

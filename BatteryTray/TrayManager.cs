@@ -24,6 +24,8 @@ public sealed class TrayManager : IDisposable, IToastSink
     readonly Action<string> _onLanguage;
 
     public event Action? IconClicked;
+    /// <summary>Demande d'ouverture de la visionneuse d'historique (menu du clic droit).</summary>
+    public event Action? HistoryRequested;
     /// <summary>Double-clic gauche sur une icône (ouvre les paramètres).</summary>
     public event Action? IconDoubleClicked;
     readonly ClickGate _clicks = new();
@@ -55,6 +57,7 @@ public sealed class TrayManager : IDisposable, IToastSink
 
         _menu.Items.Add(Loc.T("menu.refresh"), null, (_, _) => _onRefresh());
         _menu.Items.Add(Loc.T("menu.settings"), null, (_, _) => _onOpenSettings());
+        _menu.Items.Add(Loc.T("menu.history"), null, (_, _) => HistoryRequested?.Invoke());
         _menu.Items.Add(new ToolStripSeparator());
 
         var lang = new ToolStripMenuItem(Loc.T("menu.language"));

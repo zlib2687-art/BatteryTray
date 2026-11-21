@@ -16,10 +16,14 @@ pourcentage, un flyout détaillé au clic, des notifications et une autonomie es
    *Paramètres → Personnalisation → Barre des tâches → Autres icônes de barre d'état système* et activez
    BatteryTray (ou glissez les icônes du menu ^ vers la barre). Une application ne peut pas le faire à votre place.
 
-Le fichier fait environ 163 Mo (il embarque .NET : rien d'autre à installer). Il n'est pas signé : Windows peut
+Le fichier fait environ **69 Mo** (il embarque .NET, compressé : rien d'autre à installer). Il n'est pas signé : Windows peut
 afficher un avertissement SmartScreen (« Informations complémentaires » → « Exécuter quand même »).
 
 Installation silencieuse : `BatteryTray-Setup.exe /silent`.
+
+**Version portable** : `dist\BatteryTray-Portable.zip` contient `BatteryTray.exe`, à lancer directement, sans installation
+ni droit administrateur (pas de démarrage avec Windows ni de redémarrage automatique : ils viennent de l'installation).
+Les deux fichiers sont produits par `build-installer.ps1`.
 
 ## Utilisation
 
@@ -30,7 +34,18 @@ Installation silencieuse : `BatteryTray-Setup.exe /silent`.
 | **Double-clic gauche** sur une icône | Ferme le flyout et ouvre les **paramètres** |
 | Clic sur une carte du flyout | Déplie un **mini-graphique** du niveau depuis la dernière charge (échelle adaptée aux valeurs mesurées) |
 | Engrenage du flyout / clic droit → *Paramètres…* | Écran de paramètres |
-| Clic droit | Actualiser, Paramètres, Langue, notifications, Quitter |
+| Clic droit | Actualiser, Paramètres, **Historique de la batterie…**, Langue, notifications, Quitter |
+
+**Couleurs de marque** (*Paramètres → Affichage*, activées par défaut) : dans le flyout, un appareil dont la marque est reconnue
+d'après son nom (Razer, Logitech, SteelSeries, Corsair, HyperX, ASUS ROG, PlayStation, Xbox, Samsung, Apple, Jabra, JBL, Cooler Master,
+Steam, Glorious, Keychron) prend la couleur de sa marque pour la pastille et la barre de niveau ; le vert de charge, l'orange et le
+rouge restent prioritaires.
+
+**Historique de la batterie** (clic droit → *Historique de la batterie…*) : courbe par appareil sur 24 h, 7 jours ou 30 jours,
+avec dernière lecture, minimum, maximum, variation et nombre de mesures ; possibilité d'effacer l'historique d'un appareil. Seuls
+les niveaux **réellement lus** (appareil connecté, éveillé, pourcentage non estimé) sont enregistrés, au plus une mesure toutes les
+30 minutes par appareil (sauf changement d'état de charge), pendant 30 jours. Un trou de mesure interrompt la ligne : rien n'est
+inventé entre deux mesures éloignées. Fichier local `battery_history.json`, jamais envoyé nulle part.
 
 **Flyout** : une carte arrondie par appareil (liseré fin, plus claire sous la souris) avec une pastille d'icône teintée
 de la couleur d'état (couleur d'accentuation, vert en charge, orange ou rouge quand la batterie baisse, gris hors ligne),
@@ -90,7 +105,7 @@ un réglage par carte arrondie, de vrais interrupteurs, des listes déroulantes 
 (saisie au clavier, flèches, molette), et le thème clair ou sombre de Windows (barre de titre comprise).
 Les modifications ne sont appliquées qu'avec **OK**.
 - **Général** : langue, fréquence d'actualisation (1, 2, 5, 10 min), démarrage avec Windows ;
-- **Affichage** : **taille du flyout** (petit 85 %, normal 100 %, grand 125 %, très grand 150 %), seuils de couleur ;
+- **Affichage** : **couleurs de marque**, **taille du flyout** (petit 85 %, normal 100 %, grand 125 %, très grand 150 %), seuils de couleur ;
 - **Notifications** : batterie faible, charge terminée, seuil par défaut ;
 - **Appareils** : pour chaque appareil, afficher/masquer, renommer, seuil d'alerte,
   autonomie annoncée, ordre (glisser-déposer des lignes par leur marge, ou boutons Monter/Descendre).
@@ -130,7 +145,34 @@ lu sans un module écrit pour son protocole, qui n'est en général pas public. 
 (Razer, Logitech). Sur ce PC, les sources génériques s'exécutent sans erreur (balayage de 269 périphériques en 0,1 s)
 mais **aucun appareil de plus n'a été trouvé** : elles n'ont donc pas pu être vérifiées sur du matériel réel.
 
-## Appareils pris en charge
+## Pilotes de marques (portés de BatteryHub)
+
+En plus des modules Razer et Logitech de l'auteur, BatteryTray lit en **lecture seule** (une requête de niveau, aucun réglage écrit)
+les appareils sans fil de nombreuses marques à récepteur propriétaire. Ces pilotes sont **portés en C#** à partir de BatteryHub
+(krisgfx9, GPL-3.0) : voir *Licence* et `NOTICE.md`. Chaque pilote ne parle qu'aux appareils qu'il reconnaît exactement (VID:PID et forme
+de la collection HID) et abandonne si la réponse n'a pas le format attendu.
+
+| Pilote | Appareils |
+|---|---|
+| **SteelSeries** | Arctis 1 / 7 / 7+ / 9 / Pro / Pro Wireless, Arctis Nova 3P / 5 / 7 / 7X / 7P / Pro Wireless, GameBuds ; souris Aerox 3 / 5 / 9 Wireless (dont Gen 2 et CS2 Dragon Lore), Prime Wireless, Rival 3 Wireless (Gen 2), Rival 650, Rival Pro |
+| **Corsair** | Casques Void / Void Pro / Void Elite / HS70 / HS80 ; appareils « Bragi » (Virtuoso, Void V2, HS80 MAX, souris et claviers Slipstream, Dark Core RGB Pro SE) ; Sabre V2 Pro |
+| **HyperX** | Cloud II / II Core / III / III S / Alpha / Alpha 2 / Flight / Flight S / Stinger Core / Core DTS ; souris Pulsefire Haste 2 (Core, Wireless, Mini) |
+| **Glorious / Hitscan / G-Wolves / WLMouse** | Model O / D / O- / D- / O 2 / D 2 PRO Wireless ; Hitscan Hyperlight ; G-Wolves Fenrir, HTS, HSK, HTX, HTR, VUK, Lycan, WARG… ; WLMouse YING 8K |
+| **Kysona / Pulsar / ATK / VXE / Redragon / HECATE** | Souris Kysona, Pulsar (dont X2 V3 sur 3710), ATK / VXE Dragonfly R1, Redragon M916 Pro 1K / M913 / G49, HECATE, et autres souris du protocole Compx à 17 octets |
+
+**Ces pilotes n'ont pas été essayés sur du matériel** (aucun de ces appareils n'est branché sur le PC de l'auteur) : leur analyse de
+trames est vérifiée par des tests sur des trames synthétiques, et le comportement réel (délais, réponses) reste à confirmer par les
+utilisateurs de ces appareils. Un appareil de cette liste qui n'apparaît pas : lancez `BatteryTray.exe --dump` et joignez le rapport
+(sans numéro de série) à votre signalement. Les autres familles de BatteryHub (Logitech additionnels, Razer casques, ASTRO, ROG, MSI,
+Keychron, Lamzu, Endgame, NuPhy, claviers SONiX/AULA/MCHOSE, etc.) ne sont pas encore portées.
+
+## Licence
+
+BatteryTray est distribué sous **GPL-3.0** (fichier `LICENSE`). Les pilotes de marques sont dérivés du code de BatteryHub, lui-même
+sous GPL-3.0 : le projet entier l'est donc aussi. Vous pouvez l'utiliser, le modifier et le redistribuer à condition de fournir
+le code source de votre version sous la même licence et de conserver `NOTICE.md`. Aucune garantie.
+
+## Appareils pris en charge (modules de l'auteur)
 
 | Appareil | Méthode de lecture | Résultat |
 |---|---|---|
@@ -150,7 +192,7 @@ après une mise à jour de firmware. Ils n'envoient que des requêtes de **lectu
 
 ## Ce qui n'est pas réalisable (et pourquoi)
 
-- **Widget personnalisé dans la barre des tâches** : Windows 11 a supprimé les « deskbands ». Seule la zone de notification est accessible.
+- **Widget personnalisé dans la barre des tâches** : Windows 11 a supprimé les « deskbands ». Seule la zone de notification est accessible : les pourcentages s'affichent dans les icônes, à côté du menu ^ et de l'indicateur de langue.
 - **Logo + nom + pourcentage dans une seule icône** : une icône fait 16×16 px (32×32 en haute densité). Le nom est dans l'infobulle, le détail dans le flyout.
 - **Épingler automatiquement les icônes près de l'horloge** : réservé à l'utilisateur par Windows.
 - **Pourcentage exact de la G502** : la souris ne donne que sa tension. Convertir une tension en pourcentage dépend de la charge, de la température et du vieillissement : c'est une estimation, affichée avec « ~ » (seul cas où un pourcentage n'est pas lu sur l'appareil).
@@ -173,7 +215,7 @@ powershell -ExecutionPolicy Bypass -File build-installer.ps1   # produit dist\Ba
 dotnet test BatteryTray.Tests
 ```
 
-257 tests automatiques (xUnit), dont des **tests aléatoires et d'attaque** (graine fixe : fichiers corrompus, niveaux absurdes,
+367 tests automatiques (xUnit), dont des **tests aléatoires et d'attaque** (graine fixe : fichiers corrompus, niveaux absurdes,
 noms hostiles, chemins piégés, absence de toute bibliothèque réseau) et des essais de la fenêtre des paramètres dans les
 7 langues en thème clair et sombre : estimateur d'autonomie (décharge régulière, borne basse, charge, remontée du
 niveau, intervalles ignorés, vitesse mémorisée entre deux sessions), traductions (7 langues, mêmes clés,
@@ -192,6 +234,11 @@ BatteryTray\            application (WinForms, .NET 8)
   Providers\            une source de batterie par fichier (Bluetooth, manettes, Razer, Logitech, PRO X 2)
   AutonomyEstimator.cs  estimation de l'autonomie (historique local)
   AutonomyRatchet.cs    la durée affichée ne remonte jamais tant que le niveau baisse
+  BatteryHistory.cs     historique de 30 jours (enregistrement, tronçons, résumé)
+  HistoryForm.cs        visionneuse d'historique (24 h, 7 jours, 30 jours)
+  Brands.cs             reconnaissance de la marque d'après le nom, couleurs de marque
+  Providers\Hid\        couche HID commune et pilotes de marques portés de BatteryHub (SteelSeries, Corsair, HyperX, Glorious, Kysona…)
+  Cli.cs, DemoData.cs   options --list, --dump, --demo et données d'exemple
   DeviceView.cs         masquage, noms, ordre, autonomie annoncée
   ReadingMerge.cs       doublons entre sources, nettoyage des lectures (niveaux invalides, noms)
   Notifier.cs           notifications « faible » et « charge terminée »
@@ -263,7 +310,8 @@ build-installer.ps1     construction de l'installateur
 ## Données et vie privée
 
 Tout reste sur le PC, dans `%AppData%\BatteryTray` : `settings.json` (réglages), `historique.json`
-(lectures récentes pour l'autonomie, 48 h au plus), `autonomie-affichee.json` (dernière durée affichée), `journal.txt`
+(lectures récentes pour l'autonomie, 48 h au plus), `battery_history.json` (historique de 30 jours),
+`autonomie-affichee.json` (dernière durée affichée), `journal.txt`
 (journal borné), `redemarrages.txt` (relances automatiques) et `arret-voulu.flag` (présent seulement après *Quitter*).
 Aucun appel réseau.
 
@@ -272,9 +320,17 @@ Aucun appel réseau.
 - Mémoire mesurée : 15 à 20 Mo au repos, environ 39 Mo flyout ou paramètres ouverts (objectif : moins de 50 Mo).
   La stabilité sur plusieurs jours n'est pas encore vérifiée.
 - Les notifications sont déclenchées par le code (vérifié dans les réglages et les tests) mais leur affichage à l'écran n'a pas été constaté.
-- Options de diagnostic : `--preview image.png` (aperçu des icônes), `--flyout-preview image.png 125` (aperçu du flyout à 125 %),
-  `--settings-preview image.png dark|light 0-3` (aperçu d'une page des paramètres), `--providers rapport.txt`
-  (lit chaque source une fois : durée et appareils trouvés).
+- Options en ligne de commande :
+  - `--list [fichier]` lit chaque source une fois et liste les appareils trouvés (ancien nom : `--providers fichier`) ;
+  - `--dump [fichier]` décrit les périphériques HID connectés (VID:PID, nom, collections), **sans numéro de série ni chemin de
+    périphérique**, pour signaler un appareil non pris en charge ;
+  - `--demo` affiche le flyout avec des appareils d'exemple, sans matériel et sans écrire de réglage ;
+  - `--preview image.png` (icônes), `--flyout-preview image.png 125`, `--settings-preview image.png dark|light 0-3`,
+    `--history-preview image.png dark|light 0-2` (essais visuels).
+  Sans nom de fichier, `--list` et `--dump` écrivent dans la console qui a lancé le programme.
+- **Appareils pris en charge** : les modules Razer et Logitech de l'auteur sont vérifiés sur du matériel ; les **pilotes de marques portés de
+  BatteryHub** ne le sont pas (voir *Pilotes de marques*) ; les sources génériques non plus. BatteryHub couvre beaucoup plus de marques.
+- **Langues** : 7 (français, arabe tunisien, anglais, espagnol, portugais, chinois simplifié, russe).
 - Le **redémarrage automatique** relance l'application au plus 10 min après un arrêt inattendu (pas instantanément) et n'agit que
   pendant votre session. Le cas « *Quitter* = pas de relance » est couvert par des tests sur la logique, mais n'a pas été essayé de bout en bout.
 - Exécutable **non signé** : avertissement SmartScreen à l'installation.

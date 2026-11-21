@@ -1,5 +1,6 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using BatteryTray.Providers;
+using BatteryTray.Providers.Hid;
 
 namespace BatteryTray;
 
@@ -34,31 +35,24 @@ static class Program
 
         bool silent = args.Contains("/silent", StringComparer.OrdinalIgnoreCase);
 
-        // « --providers rapport.txt » : lit chaque source une fois et écrit durée et appareils trouvés (diagnostic)
-        int pv = Array.IndexOf(args, "--providers");
-        if (pv >= 0 && pv + 1 < args.Length)
+        // « --list [fichier] » (ou l'ancien « --providers fichier ») : lit chaque source une fois et liste les appareils trouvés
+        int pv = Array.FindIndex(args, a => a is "--list" or "--providers");
+        if (pv >= 0)
         {
-            var report = new System.Text.StringBuilder();
-            IBatteryProvider[] all =
-            {
-                new ProX2Provider(), new LogitechHidppProvider(), new RazerProvider(),
-                new BluetoothProvider(), new WindowsBatteryProvider(), new GamepadProvider(), new PnpBatteryProvider(),
-            };
-            foreach (var p in all)
-            {
-                var sw = System.Diagnostics.Stopwatch.StartNew();
-                try
-                {
-                    var readings = p.ReadAll();
-                    report.AppendLine($"{p.Name}: {readings.Count} appareil(s) en {sw.ElapsedMilliseconds} ms"
-                        + (p is PnpBatteryProvider pnp ? $" (périphériques examinés : {pnp.LastScanned})" : ""));
-                    foreach (var r in readings) report.AppendLine($"    {r.Name} — {r.PercentText} {r.Charge}");
-                }
-                catch (Exception e) { report.AppendLine($"{p.Name}: ERREUR {e.GetType().Name}: {e.Message}"); }
-            }
-            File.WriteAllText(args[pv + 1], report.ToString());
+            Cli.Output(Cli.BuildList(), pv + 1 < args.Length ? args[pv + 1] : null);
             return 0;
         }
+
+        // « --dump [fichier] » : décrit les périphériques HID connectés (pour signaler un appareil non pris en charge)
+        int dp = Array.IndexOf(args, "--dump");
+        if (dp >= 0)
+        {
+            Cli.Output(Cli.BuildDump(), dp + 1 < args.Length ? args[dp + 1] : null);
+            return 0;
+        }
+
+        // « --demo » : flyout avec des appareils d'exemple, sans matériel
+        if (args.Contains("--demo", StringComparer.OrdinalIgnoreCase)) return Cli.RunDemo();
 
         // « --flyout-preview fichier.png 125 » : dessine le flyout avec des données d'exemple à cette taille (%)
         int fp = Array.IndexOf(args, "--flyout-preview");
@@ -66,22 +60,8 @@ static class Program
         {
             AppSettings.Current.FlyoutScale = scale;
             var now = DateTime.Now;
-            var sample = new List<BatteryReading>
-            {
-                new("a", "Razer DeathAdder V4 Pro", DeviceKind.Mouse, 100, null, null, now) { AutonomyHours = 26.7, AutonomyLowerBound = true },
-                new("b", "Logitech PRO X 2", DeviceKind.Headset, 72, null, null, now) { AutonomyHours = 19.2 },
-                new("c", "Manette 1", DeviceKind.Gamepad, 35, ChargeState.Charging, null, now) { ChargeEtaHours = 1.1 },
-                new("r", "Razer DeathAdder V4 Pro", DeviceKind.Mouse, 100, ChargeState.Charging, null, now),
-                new("d", "Écouteurs", DeviceKind.Headset, 75, null, null, now)
-                {
-                    Parts = new[] { new BatteryPart(BatteryParts.Left, 80), new BatteryPart(BatteryParts.Right, 75) },
-                },
-                new("e", "Micro DJI", DeviceKind.Microphone, 64, null, null, now.AddHours(-3)) { Offline = true },
-            };
-            // historique d'exemple : 80 % -> 72 % en 2 h, pour montrer le mini-graphique
-            var history = Enumerable.Range(0, 13)
-                .Select(i => new AutonomyEstimator.Sample(now.AddMinutes(-120 + i * 10), 80 - (int)Math.Round(i * 8 / 12.0)))
-                .ToList();
+            var sample = DemoData.Readings(now);
+            var history = DemoData.History(now); // 80 % -> 72 % en 2 h, pour montrer le mini-graphique
             // « saved » : ce que le flyout montre quand aucun appareil ne répond (valeurs enregistrées, en gris)
             if (args.Contains("saved")) sample = DeviceView.Prepare(Array.Empty<BatteryReading>(), AppSettings.Current, out _);
             using var f = new FlyoutForm { History = _ => history };
@@ -104,6 +84,30 @@ static class Program
             form.SelectPage(page);
             using var shot = form.RenderPreview();
             shot.Save(args[sp + 1]);
+            return 0;
+        }
+
+        // « --history-preview fichier.png [light|dark] [0-2] » : dessine la visionneuse d'historique avec 30 jours de données d'exemple
+        int hp = Array.IndexOf(args, "--history-preview");
+        if (hp >= 0 && hp + 1 < args.Length)
+        {
+            if (args.Contains("light")) SettingsTheme.Forced = true;
+            else if (args.Contains("dark")) SettingsTheme.Forced = false;
+            var demo = new BatteryHistory();
+            var now = DateTime.Now;
+            var rnd = new Random(5);
+            for (int k = 30 * 48; k >= 0; k--)
+            {
+                var t = now.AddMinutes(-30 * k);
+                if (rnd.Next(100) < 6) continue; // quelques trous, comme un appareil éteint
+                int level = 5 + (k % 240) * 2 / 5; // décharge de 100 % à environ 5 % en 5 jours, puis recharge
+                demo.Record(new[] { new BatteryReading("demo", "Logitech PRO X 2", DeviceKind.Headset, Math.Clamp(level, 5, 100), null, null, t) }, t);
+            }
+            int range = args.Skip(hp + 2).Select(a => int.TryParse(a, out int n) ? n : -1).FirstOrDefault(n => n >= 0);
+            using var form = new HistoryForm(demo);
+            form.SetRange(range);
+            using var shot = form.RenderPreview();
+            shot.Save(args[hp + 1]);
             return 0;
         }
 
@@ -185,6 +189,8 @@ sealed class TrayApp : ApplicationContext
     readonly AutonomyRatchet _ratchet = new(Path.Combine(AppSettings.DataDir, "autonomie-affichee.json"));
     FlyoutForm? _flyout;
     SettingsForm? _settingsForm;
+    HistoryForm? _historyForm;
+    readonly BatteryHistory _history = new(Path.Combine(AppSettings.DataDir, "battery_history.json"));
     IReadOnlyList<BatteryReading> _latest = Array.Empty<BatteryReading>();
     readonly RefreshGate _gate = new(TimeSpan.FromMinutes(2));
 
@@ -200,7 +206,7 @@ sealed class TrayApp : ApplicationContext
         // génériques toutes marques, le balayage général des périphériques Windows en dernier.
         _providers = new IBatteryProvider[]
         {
-            new ProX2Provider(), _logitech, new RazerProvider(),
+            new ProX2Provider(), _logitech, new RazerProvider(), new HidDriversProvider(),
             new BluetoothProvider(), new WindowsBatteryProvider(), new GamepadProvider(), new PnpBatteryProvider(),
         };
         _tray = new TrayManager(_settings, () => Refresh(), ExitThread, SetLanguage, () => _settings.Save(), OpenSettings,
@@ -209,6 +215,7 @@ sealed class TrayApp : ApplicationContext
         _notifier = new Notifier(_settings, _tray);
         _tray.IconClicked += ToggleFlyout;
         _tray.IconDoubleClicked += () => { _flyout?.Dismiss(); OpenSettings(); }; // double-clic sur une icône : paramètres
+        _tray.HistoryRequested += OpenHistory;
         _timer.Interval = Math.Max(1, _settings.PollMinutes) * 60 * 1000;
         _timer.Tick += (_, _) => Refresh();
         _timer.Start();
@@ -265,6 +272,18 @@ sealed class TrayApp : ApplicationContext
         _tray.BuildMenu();
         _tray.Update(_latest);
         _flyout?.RefreshLayout(); // taille choisie dans les paramètres
+    }
+
+    void OpenHistory()
+    {
+        _ui.BeginInvoke(() =>
+        {
+            if (_historyForm is { IsDisposed: false }) { _historyForm.Activate(); return; }
+            _historyForm = new HistoryForm(_history);
+            _historyForm.FormClosed += (_, _) => { _historyForm.Dispose(); _historyForm = null; Trim(); };
+            _historyForm.Show();
+            _historyForm.Activate();
+        });
     }
 
     void OpenSettings()
@@ -334,6 +353,7 @@ sealed class TrayApp : ApplicationContext
                         if (changed) _settings.Save();
                         _latest = view;
                         _tray.Update(view);
+                        _history.Record(view, DateTime.Now); // historique sur 30 jours (une mesure toutes les 30 min au plus)
                         _notifier.Evaluate(view);
                         if (_flyout is { Visible: true }) _flyout.SetItems(view);
                         foreach (var r in view)
@@ -372,6 +392,8 @@ sealed class TrayApp : ApplicationContext
         Watchdog.MarkIntentionalExit(); // « Quitter » ou fin de session : la tâche de surveillance ne doit pas relancer
         _settings.Save(); // enregistre les dernières valeurs connues (affichage hors ligne)
         _ratchet.Flush();
+        _history.Flush();
+        _historyForm?.Dispose();
         _estimator.Flush(); // et l'historique d'autonomie (écrit au plus toutes les 5 min le reste du temps)
         _sleepTimer.Dispose();
         _watchTimer.Dispose();
