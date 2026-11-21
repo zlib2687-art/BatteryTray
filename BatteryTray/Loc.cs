@@ -107,6 +107,9 @@ public static partial class Loc
         _ => T("part.other"),
     };
 
+    /// <summary>Au-delà de cette durée, l'autonomie s'affiche « plus de 30 j ».</summary>
+    public const double MaxShownHours = 24 * 30;
+
     /// <summary>Texte d'autonomie à afficher, ou null (en charge / pas de pourcentage).</summary>
     public static string? AutonomyText(BatteryReading r)
     {
@@ -121,7 +124,9 @@ public static partial class Loc
             string bound = h >= AutonomyEstimator.MaxLowerBoundHours ? $"{AutonomyEstimator.MaxLowerBoundHours:0} {T("unit.h")}" : Duration(FloorForBound(h));
             text = T("autonomy.atLeast", bound);
         }
-        else if (h > 96) text = T("autonomy.over");
+        // Souris à très longue autonomie (DeathAdder V4 Pro : ~150 h) : on montre l'estimation réelle, pas un plafond de 4 j ;
+        // « plus de 30 j » seulement au-delà de 720 h.
+        else if (h > MaxShownHours) text = T("autonomy.atLeast", Duration(MaxShownHours));
         else text = T("autonomy.fmt", Duration(h));
         return r.AutonomyFromRating ? text + " " + T("autonomy.rated") : text;
     }

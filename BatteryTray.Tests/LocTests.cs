@@ -129,7 +129,8 @@ public class LocTests
             Assert.Equal("reste plus de 24 h", Loc.AutonomyText(baseReading with { AutonomyHours = 24, AutonomyLowerBound = true }));
             Assert.Equal("reste plus de 24 h", Loc.AutonomyText(baseReading with { AutonomyHours = 70, AutonomyLowerBound = true })); // jamais plus que le plafond
             Assert.Equal("reste ≈ 10 h (annoncée)", Loc.AutonomyText(baseReading with { AutonomyHours = 10, AutonomyFromRating = true }));
-            Assert.Equal("reste plus de 4 j", Loc.AutonomyText(baseReading with { AutonomyHours = 200 }));
+            Assert.Equal("reste ≈ 8 j 8 h", Loc.AutonomyText(baseReading with { AutonomyHours = 200 }));      // plus de plafond à 4 j
+            Assert.Equal("reste plus de 30 j", Loc.AutonomyText(baseReading with { AutonomyHours = 900 }));
             Assert.Null(Loc.AutonomyText(baseReading with { Charge = ChargeState.Charging, AutonomyHours = 5 }));
             Assert.Null(Loc.AutonomyText(baseReading with { Percent = null }));
         }

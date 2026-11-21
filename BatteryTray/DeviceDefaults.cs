@@ -21,8 +21,7 @@ public static class DeviceDefaults
         // Razer, autonomies annoncées par le fabricant (à confirmer : la mesure les remplace) : point de départ tant qu'aucune mesure n'existe.
         ("BlackShark V2 Pro", 70),
         ("Viper V3 Pro", 95),
-        ("DeathAdder V3 Pro", 90),
-    };
+        ("DeathAdder V3 Pro", 90),    };
 
     public static double? RatedHoursFor(string deviceName)
     {
