@@ -17,6 +17,8 @@ public sealed class HidDriversProvider : IBatteryProvider
     {
         ("Glorious / Hitscan / G-Wolves / WLMouse", GloriousDriver.Poll),
         ("SteelSeries", SteelSeriesDriver.Poll),
+        ("Razer BlackShark", RazerHeadsetDriver.Poll),
+        ("LAMZU", LamzuDriver.Poll),
         ("Corsair", CorsairDriver.Poll),
         ("HyperX", HyperXDriver.Poll),
         ("Kysona / Pulsar / ATK / VXE / Redragon / HECATE", KysonaDriver.Poll),

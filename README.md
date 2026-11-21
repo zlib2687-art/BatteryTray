@@ -1,4 +1,4 @@
-# BatteryTray
+﻿# BatteryTray
 
 Affiche le niveau de batterie de vos périphériques sans fil dans la zone de notification de Windows 11,
 à côté de l'indicateur de langue : un pictogramme (casque, souris, clavier, manette, webcam) avec le
@@ -155,6 +155,8 @@ de la collection HID) et abandonne si la réponse n'a pas le format attendu.
 | Pilote | Appareils |
 |---|---|
 | **SteelSeries** | Arctis 1 / 7 / 7+ / 9 / Pro / Pro Wireless, Arctis Nova 3P / 5 / 7 / 7X / 7P / Pro Wireless, GameBuds ; souris Aerox 3 / 5 / 9 Wireless (dont Gen 2 et CS2 Dragon Lore), Prime Wireless, Rival 3 Wireless (Gen 2), Rival 650, Rival Pro |
+| **Razer BlackShark** | BlackShark V3, V3 Pro (dont Xbox), V3 X, V2 HyperSpeed, V2 Pro (2020 et 2023) ; le Barracuda X n'est pas encore porté |
+| **LAMZU** | Maya X, Maya, Maya M, Tachi, Inca, Paro, Thorn, Atlantis Mini / OG Champion, Orcus, Mini (câble et récepteurs) |
 | **Corsair** | Casques Void / Void Pro / Void Elite / HS70 / HS80 ; appareils « Bragi » (Virtuoso, Void V2, HS80 MAX, souris et claviers Slipstream, Dark Core RGB Pro SE) ; Sabre V2 Pro |
 | **HyperX** | Cloud II / II Core / III / III S / Alpha / Alpha 2 / Flight / Flight S / Stinger Core / Core DTS ; souris Pulsefire Haste 2 (Core, Wireless, Mini) |
 | **Glorious / Hitscan / G-Wolves / WLMouse** | Model O / D / O- / D- / O 2 / D 2 PRO Wireless ; Hitscan Hyperlight ; G-Wolves Fenrir, HTS, HSK, HTX, HTR, VUK, Lycan, WARG… ; WLMouse YING 8K |
@@ -163,8 +165,8 @@ de la collection HID) et abandonne si la réponse n'a pas le format attendu.
 **Ces pilotes n'ont pas été essayés sur du matériel** (aucun de ces appareils n'est branché sur le PC de l'auteur) : leur analyse de
 trames est vérifiée par des tests sur des trames synthétiques, et le comportement réel (délais, réponses) reste à confirmer par les
 utilisateurs de ces appareils. Un appareil de cette liste qui n'apparaît pas : lancez `BatteryTray.exe --dump` et joignez le rapport
-(sans numéro de série) à votre signalement. Les autres familles de BatteryHub (Logitech additionnels, Razer casques, ASTRO, ROG, MSI,
-Keychron, Lamzu, Endgame, NuPhy, claviers SONiX/AULA/MCHOSE, etc.) ne sont pas encore portées.
+(sans numéro de série) à votre signalement. Les autres familles de BatteryHub (Logitech additionnels, Razer Barracuda X, ASTRO, ROG, MSI,
+Keychron, Endgame, NuPhy, claviers SONiX/AULA/MCHOSE, etc.) ne sont pas encore portées.
 
 ## Licence
 
@@ -215,7 +217,7 @@ powershell -ExecutionPolicy Bypass -File build-installer.ps1   # produit dist\Ba
 dotnet test BatteryTray.Tests
 ```
 
-367 tests automatiques (xUnit), dont des **tests aléatoires et d'attaque** (graine fixe : fichiers corrompus, niveaux absurdes,
+376 tests automatiques (xUnit), dont des **tests aléatoires et d'attaque** (graine fixe : fichiers corrompus, niveaux absurdes,
 noms hostiles, chemins piégés, absence de toute bibliothèque réseau) et des essais de la fenêtre des paramètres dans les
 7 langues en thème clair et sombre : estimateur d'autonomie (décharge régulière, borne basse, charge, remontée du
 niveau, intervalles ignorés, vitesse mémorisée entre deux sessions), traductions (7 langues, mêmes clés,
