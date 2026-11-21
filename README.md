@@ -1,4 +1,4 @@
-﻿# BatteryTray
+# BatteryTray
 
 Affiche le niveau de batterie de vos périphériques sans fil dans la zone de notification de Windows 11,
 à côté de l'indicateur de langue : un pictogramme (casque, souris, clavier, manette, webcam) avec le
@@ -174,6 +174,10 @@ de la collection HID) et abandonne si la réponse n'a pas le format attendu.
 | **Alienware** | Casque AW920H sur récepteur 2,4 GHz |
 | **Audeze** | Casques Maxwell et Maxwell 2 (récepteur ou câble USB-C) |
 | **Akko** | Souris V9 Dash Pro et Dash V9 Ultra (récepteur 2,4 GHz) |
+| **AKG** | N9 Hybrid (récepteur USB-C) |
+| **Razer Barracuda Pro** | Casque sur récepteur 2,4 GHz (active un instant le mode distant de Synapse, rien n'est mémorisé) |
+| **AJAZZ** | Clavier AK992 (récepteur 2,4 GHz) |
+| **CHERRY** | Clavier MX 3.0S Wireless (récepteur ou câble), souris XTRFY (récepteur 1K) |
 
 **Ces pilotes n'ont pas été essayés sur du matériel** (aucun de ces appareils n'est branché sur le PC de l'auteur) : leur analyse de
 trames est vérifiée par des tests sur des trames synthétiques, et le comportement réel (délais, réponses) reste à confirmer par les
@@ -230,7 +234,7 @@ powershell -ExecutionPolicy Bypass -File build-installer.ps1   # produit dist\Ba
 dotnet test BatteryTray.Tests
 ```
 
-455 tests automatiques (xUnit), dont des **tests aléatoires et d'attaque** (graine fixe : fichiers corrompus, niveaux absurdes,
+465 tests automatiques (xUnit), dont des **tests aléatoires et d'attaque** (graine fixe : fichiers corrompus, niveaux absurdes,
 noms hostiles, chemins piégés, absence de toute bibliothèque réseau) et des essais de la fenêtre des paramètres dans les
 20 langues en thème clair et sombre : estimateur d'autonomie (décharge régulière, borne basse, charge, remontée du
 niveau, intervalles ignorés, vitesse mémorisée entre deux sessions), traductions (20 langues, mêmes clés,

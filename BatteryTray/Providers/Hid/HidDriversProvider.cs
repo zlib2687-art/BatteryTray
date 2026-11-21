@@ -31,6 +31,10 @@ public sealed class HidDriversProvider : IBatteryProvider
         ("Alienware", AlienwareDriver.Poll),
         ("Audeze", AudezeDriver.Poll),
         ("Akko", AkkoDriver.Poll),
+        ("AKG", AkgDriver.Poll),
+        ("Razer Barracuda Pro", BarracudaProDriver.Poll),
+        ("AJAZZ", AjazzDriver.Poll),
+        ("CHERRY", CherryDriver.Poll),
     };
 
     /// <summary>Durée maximale cumulée d'une lecture : au-delà, les pilotes restants sont sautés jusqu'à la lecture suivante.</summary>
