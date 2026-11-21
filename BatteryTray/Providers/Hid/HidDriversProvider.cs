@@ -39,6 +39,9 @@ public sealed class HidDriversProvider : IBatteryProvider
         ("ENDORFY", EndorfyDriver.Poll),
         ("EWEADN", EweadnDriver.Poll),
         ("Fantech", FantechDriver.Poll),
+        ("Zowie", ZowieDriver.Poll),
+        ("Logitech G435", LogitechG435Driver.Poll),
+        ("Logitech HID++ (compléments)", LogitechExtraDriver.Poll),
     };
 
     /// <summary>Durée maximale cumulée d'une lecture : au-delà, les pilotes restants sont sautés jusqu'à la lecture suivante.</summary>
