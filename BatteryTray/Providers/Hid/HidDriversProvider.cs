@@ -82,6 +82,11 @@ public sealed class HidDriversProvider : IBatteryProvider
         ("Redragon Evision", RedragonEvisionDriver.Poll),
         ("ATK clavier", AtkKeyboardDriver.Poll),
         ("ATK N9 (port série)", AtkSerialDriver.Poll),
+        ("AULA / MCHOSE", AulaDriver.Poll),
+        ("AULA souris X9 / V9", AulaMouseDriver.Poll),
+        ("SONiX (AJAZZ, EPOMAKER, Lofree…)", SonixDriver.Poll),
+        ("Royal Kludge", RoyalKludgeDriver.Poll),
+        ("Rongyuan (Attack Shark / Ajazz / MonsGeek)", RongyuanDriver.Poll),
         ("Logitech G435", LogitechG435Driver.Poll),
         ("Logitech HID++ (compléments)", LogitechExtraDriver.Poll),
     };
