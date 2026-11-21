@@ -23,6 +23,7 @@ public sealed class HidDriversProvider : IBatteryProvider
         ("PlayStation", PlayStationDriver.Poll),
         ("Corsair", CorsairDriver.Poll),
         ("HyperX", HyperXDriver.Poll),
+        ("ATK / VXE BITMOUSE", AtkBitmouseDriver.Poll),
         ("Kysona / Pulsar / ATK / VXE / Redragon / HECATE", KysonaDriver.Poll),
         ("ASTRO", AstroDriver.Poll),
         ("ASUS ROG", RogDriver.Poll),
@@ -78,6 +79,9 @@ public sealed class HidDriversProvider : IBatteryProvider
         ("Autres souris (Motospeed, Xenta, Delux, Ajazz, Incott, Wraith)", MiscMiceDriver.Poll),
         ("Pulsar", PulsarDriver.Poll),
         ("RAWM / SADES", RawmDriver.Poll),
+        ("Redragon Evision", RedragonEvisionDriver.Poll),
+        ("ATK clavier", AtkKeyboardDriver.Poll),
+        ("ATK N9 (port série)", AtkSerialDriver.Poll),
         ("Logitech G435", LogitechG435Driver.Poll),
         ("Logitech HID++ (compléments)", LogitechExtraDriver.Poll),
     };
