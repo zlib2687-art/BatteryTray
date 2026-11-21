@@ -40,6 +40,11 @@ public sealed class HidDriversProvider : IBatteryProvider
         ("EWEADN", EweadnDriver.Poll),
         ("Fantech", FantechDriver.Poll),
         ("Zowie", ZowieDriver.Poll),
+        ("Finalmouse", FinalmouseDriver.Poll),
+        ("Flydigi", FlydigiDriver.Poll),
+        ("Fractal Design", FractalDriver.Poll),
+        ("GameSir", GameSirDriver.Poll),
+        ("GameSir SAPJoy", GameSirSapjoyDriver.Poll),
         ("Logitech G435", LogitechG435Driver.Poll),
         ("Logitech HID++ (compléments)", LogitechExtraDriver.Poll),
     };
