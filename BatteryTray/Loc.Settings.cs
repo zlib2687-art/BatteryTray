@@ -11,6 +11,8 @@ public static partial class Loc
         foreach (var (lang, extra) in Extra)
             foreach (var (key, value) in extra)
                 Tables[lang][key] = value;
+        foreach (var (lang, table) in More)
+            Tables[lang] = new Dictionary<string, string>(table);
     }
 
     static readonly Dictionary<string, Dictionary<string, string>> Extra = new()

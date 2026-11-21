@@ -97,8 +97,12 @@ déjà lancée, avec les vrais textes dans la langue choisie). Les notifications
 **reçoit mais n'affiche aucune bannière**. Pour être prévenu quand même : désactive ce mode, ou ajoute BatteryTray aux
 *notifications prioritaires* (Paramètres → Système → Notifications → Ne pas déranger → Définir les notifications prioritaires).
 
-**Langues** : français, arabe tunisien (affichage de droite à gauche), anglais, espagnol, portugais (Portugal),
-chinois simplifié, russe. Changement immédiat. Les traductions sont à faire relire par des locuteurs natifs.
+**Langues (20)** : français, anglais, espagnol, allemand, portugais (Portugal), portugais (Brésil), russe, ukrainien, polonais, hongrois,
+suédois, turc, vietnamien, chinois simplifié, chinois traditionnel, japonais, coréen, et — **affichées de droite à gauche** —
+arabe tunisien, persan et hébreu. Elles couvrent les mêmes langues que BatteryHub. L'application suit la langue d'affichage de Windows
+(portugais du Brésil et du Portugal, chinois simplifié et traditionnel distingués), et le menu clic droit ou les paramètres permettent d'en
+choisir une autre ; changement immédiat. Police dédiée pour le chinois, le japonais et le coréen. **Les traductions sont rédigées par une IA
+et sont à faire relire par des locuteurs natifs** (fichiers `Loc*.cs` : un texte à corriger = une ligne à modifier).
 
 **Paramètres** : une fenêtre dans le style des **Paramètres de Windows 11**, avec une navigation à gauche en quatre pages,
 un réglage par carte arrondie, de vrais interrupteurs, des listes déroulantes et des champs numériques arrondis
@@ -127,7 +131,7 @@ d'un autre logiciel, plantage, processus tué), la tâche planifiée « BatteryT
 
 **Commun à tout appareil qui donne un niveau** (aucune marque n'est codée en dur) : pourcentage dans la barre, flyout,
 couleurs (orange / rouge / **vert en charge** / gris hors ligne), autonomie, temps de charge, graphique, notifications,
-renommer / masquer / ordonner, 7 langues, appareils gardés en gris quand ils se déconnectent.
+renommer / masquer / ordonner, 20 langues, appareils gardés en gris quand ils se déconnectent.
 
 **La lecture du niveau** se fait par des sources, de la plus précise à la plus générale (en cas de doublon, la première gagne) :
 
@@ -217,10 +221,10 @@ powershell -ExecutionPolicy Bypass -File build-installer.ps1   # produit dist\Ba
 dotnet test BatteryTray.Tests
 ```
 
-376 tests automatiques (xUnit), dont des **tests aléatoires et d'attaque** (graine fixe : fichiers corrompus, niveaux absurdes,
+413 tests automatiques (xUnit), dont des **tests aléatoires et d'attaque** (graine fixe : fichiers corrompus, niveaux absurdes,
 noms hostiles, chemins piégés, absence de toute bibliothèque réseau) et des essais de la fenêtre des paramètres dans les
-7 langues en thème clair et sombre : estimateur d'autonomie (décharge régulière, borne basse, charge, remontée du
-niveau, intervalles ignorés, vitesse mémorisée entre deux sessions), traductions (7 langues, mêmes clés,
+20 langues en thème clair et sombre : estimateur d'autonomie (décharge régulière, borne basse, charge, remontée du
+niveau, intervalles ignorés, vitesse mémorisée entre deux sessions), traductions (20 langues, mêmes clés,
 paramètres de texte conservés, arabe seul en droite-à-gauche), formats de durée, règles de notification
 (une fois par passage de seuil, réarmement, seuil par appareil, persistance après redémarrage), masquage,
 noms et ordre des appareils, appareils hors ligne, temps de charge, batteries multiples, calcul du mini-graphique,
@@ -252,7 +256,7 @@ BatteryTray\            application (WinForms, .NET 8)
   ModernInputs.cs       liste déroulante et champ numérique façon Windows 11
   Watchdog.cs           redémarrage automatique (tâche planifiée + script)
   SafeFile.cs           écriture « tout ou rien » des fichiers de données
-  Loc.cs, Loc.Settings.cs   textes en 7 langues
+  Loc.cs, Loc.Settings.cs   textes en 20 langues (Loc.More.cs : les 13 ajoutées)
   Installer.cs          installation / désinstallation (même fichier que le programme)
 BatteryTray.Tests\      tests xUnit
 Prototype\              prototype console de l'étape de faisabilité
@@ -332,7 +336,7 @@ Aucun appel réseau.
   Sans nom de fichier, `--list` et `--dump` écrivent dans la console qui a lancé le programme.
 - **Appareils pris en charge** : les modules Razer et Logitech de l'auteur sont vérifiés sur du matériel ; les **pilotes de marques portés de
   BatteryHub** ne le sont pas (voir *Pilotes de marques*) ; les sources génériques non plus. BatteryHub couvre beaucoup plus de marques.
-- **Langues** : 7 (français, arabe tunisien, anglais, espagnol, portugais, chinois simplifié, russe).
+- **Langues** : 20 (voir *Langues*), traductions à faire relire par des locuteurs natifs.
 - Le **redémarrage automatique** relance l'application au plus 10 min après un arrêt inattendu (pas instantanément) et n'agit que
   pendant votre session. Le cas « *Quitter* = pas de relance » est couvert par des tests sur la logique, mais n'a pas été essayé de bout en bout.
 - Exécutable **non signé** : avertissement SmartScreen à l'installation.

@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 
 namespace BatteryTray;
 
@@ -18,13 +18,35 @@ public static partial class Loc
         ("pt", "Português"),
         ("zh", "中文（简体）"),
         ("ru", "Русский"),
+        // langues ajoutées (traductions dans Loc.More.cs), celles de BatteryHub en plus
+        ("de", "Deutsch"),
+        ("fa", "فارسی"),
+        ("he", "עברית"),
+        ("ja", "日本語"),
+        ("ko", "한국어"),
+        ("hu", "Magyar"),
+        ("pl", "Polski"),
+        ("pt-BR", "Português (Brasil)"),
+        ("sv", "Svenska"),
+        ("vi", "Tiếng Việt"),
+        ("tr", "Türkçe"),
+        ("uk", "Українська"),
+        ("zh-TW", "繁體中文"),
     };
 
     public static string Current { get; private set; } = "fr";
-    public static bool IsRtl => Current == "ar-TN";
+    /// <summary>Langues qui s'écrivent de droite à gauche : arabe, persan, hébreu.</summary>
+    public static bool IsRtl => Current is "ar-TN" or "fa" or "he";
 
-    /// <summary>Police adaptée à la langue (le chinois a besoin d'une police CJK).</summary>
-    public static string FontFamily => Current == "zh" ? "Microsoft YaHei UI" : "Segoe UI";
+    /// <summary>Police adaptée à la langue : les écritures chinoise, japonaise et coréenne ont besoin d'une police dédiée.</summary>
+    public static string FontFamily => Current switch
+    {
+        "zh" => "Microsoft YaHei UI",
+        "zh-TW" => "Microsoft JhengHei UI",
+        "ja" => "Yu Gothic UI",
+        "ko" => "Malgun Gothic",
+        _ => "Segoe UI",
+    };
 
     public static void Init(string? saved) => Set(string.IsNullOrEmpty(saved) ? DetectSystem() : saved);
 
@@ -33,17 +55,22 @@ public static partial class Loc
         Current = Tables.ContainsKey(code) ? code : "fr";
     }
 
-    /// <summary>Langue de l'interface Windows, si elle fait partie des 7 prises en charge.</summary>
-    public static string DetectSystem()
+    /// <summary>Langue de l'interface Windows, si elle fait partie des langues prises en charge (sinon le français).</summary>
+    public static string DetectSystem() => FromLangId(GetUserDefaultUILanguage());
+
+    /// <summary>Langue prise en charge pour un identifiant de langue Windows (LANGID) : logique pure, testée.</summary>
+    public static string FromLangId(int langId)
     {
-        int primary = GetUserDefaultUILanguage() & 0x3FF;
+        int primary = langId & 0x3FF, sub = (langId >> 10) & 0x3F;
         return primary switch
         {
-            0x0C => "fr", 0x09 => "en", 0x0A => "es", 0x16 => "pt", 0x04 => "zh", 0x19 => "ru", 0x01 => "ar-TN",
+            0x0C => "fr", 0x09 => "en", 0x0A => "es", 0x19 => "ru", 0x01 => "ar-TN", 0x07 => "de", 0x29 => "fa", 0x0D => "he",
+            0x11 => "ja", 0x12 => "ko", 0x0E => "hu", 0x15 => "pl", 0x1D => "sv", 0x2A => "vi", 0x1F => "tr", 0x22 => "uk",
+            0x16 => sub == 1 ? "pt-BR" : "pt",            // 0x0416 = Brésil, 0x0816 = Portugal
+            0x04 => sub is 2 or 4 ? "zh" : "zh-TW", // 0x0804 Chine, 0x1004 Singapour = simplifié ; 0x0404 Taïwan, 0x0C04 Hong Kong, 0x1404 Macao = traditionnel
             _ => "fr",
         };
     }
-
     public static string T(string key)
     {
         if (Tables[Current].TryGetValue(key, out var s)) return s;
