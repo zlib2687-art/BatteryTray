@@ -54,7 +54,7 @@ static class Installer
             using (var k = Registry.CurrentUser.CreateSubKey(UninstallKey))
             {
                 k.SetValue("DisplayName", AppName);
-                k.SetValue("DisplayVersion", typeof(Installer).Assembly.GetName().Version?.ToString(3) ?? "1.0.0");
+                k.SetValue("DisplayVersion", typeof(Installer).Assembly.GetName().Version?.ToString(3) ?? "1.0.1");
                 k.SetValue("Publisher", AppName);
                 k.SetValue("InstallLocation", InstallDir);
                 k.SetValue("DisplayIcon", TargetExe);

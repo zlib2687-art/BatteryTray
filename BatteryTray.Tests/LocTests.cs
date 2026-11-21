@@ -1,4 +1,4 @@
-using Xunit;
+﻿using Xunit;
 
 namespace BatteryTray.Tests;
 
@@ -7,9 +7,9 @@ public class LocTests
     static IEnumerable<string> Codes => Loc.Languages.Select(l => l.Code);
 
     [Fact]
-    public void Seven_languages_are_available()
+    public void The_original_seven_languages_are_still_first()
     {
-        Assert.Equal(new[] { "fr", "ar-TN", "en", "es", "pt", "zh", "ru" }, Codes.ToArray());
+        Assert.Equal(new[] { "fr", "ar-TN", "en", "es", "pt", "zh", "ru" }, Codes.Take(7).ToArray()); // les 13 autres (BatteryHub) suivent : voir LanguagesTests
     }
 
     [Fact]
@@ -75,7 +75,7 @@ public class LocTests
     }
 
     [Fact]
-    public void Only_tunisian_arabic_is_right_to_left()
+    public void Only_arabic_persian_and_hebrew_are_right_to_left()
     {
         string saved = Loc.Current;
         try
@@ -83,7 +83,7 @@ public class LocTests
             foreach (string code in Codes)
             {
                 Loc.Set(code);
-                Assert.Equal(code == "ar-TN", Loc.IsRtl);
+                Assert.Equal(code is "ar-TN" or "fa" or "he", Loc.IsRtl);
             }
         }
         finally { Loc.Set(saved); }
@@ -129,7 +129,8 @@ public class LocTests
             Assert.Equal("reste plus de 24 h", Loc.AutonomyText(baseReading with { AutonomyHours = 24, AutonomyLowerBound = true }));
             Assert.Equal("reste plus de 24 h", Loc.AutonomyText(baseReading with { AutonomyHours = 70, AutonomyLowerBound = true })); // jamais plus que le plafond
             Assert.Equal("reste ≈ 10 h (annoncée)", Loc.AutonomyText(baseReading with { AutonomyHours = 10, AutonomyFromRating = true }));
-            Assert.Equal("reste plus de 4 j", Loc.AutonomyText(baseReading with { AutonomyHours = 200 }));
+            Assert.Equal("reste ≈ 8 j 8 h", Loc.AutonomyText(baseReading with { AutonomyHours = 200 }));      // plus de plafond à 4 j
+            Assert.Equal("reste plus de 30 j", Loc.AutonomyText(baseReading with { AutonomyHours = 900 }));
             Assert.Null(Loc.AutonomyText(baseReading with { Charge = ChargeState.Charging, AutonomyHours = 5 }));
             Assert.Null(Loc.AutonomyText(baseReading with { Percent = null }));
         }

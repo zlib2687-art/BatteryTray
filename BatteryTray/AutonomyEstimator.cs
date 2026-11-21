@@ -53,7 +53,8 @@ public sealed class AutonomyEstimator
     const double LearnMinSpanHours = 1.5;          // une mesure est « solide » à partir de 5 changements sur 1 h 30
     const int LearnMinPoints = 5;
     const double PriorWeight = 6;                  // poids de l'autonomie annoncée, en « changements équivalents »
-    const double LowerBoundHours = 0.25;          // 15 min sans baisse : première borne « plus de… »
+    const double MaxLearnedOverRated = 1.5;        // une vitesse apprise ne peut pas dépasser 1,5 × l'autonomie annoncée
+    const double LowerBoundHours = 0.25;         // 15 min sans baisse : première borne « plus de… »
 
     // charge (une charge est plus courte : seuils plus bas)
     const int ChargeMinPoints = 3;
@@ -61,6 +62,9 @@ public sealed class AutonomyEstimator
 
     /// <summary>La borne « plus de… » est plafonnée : sans cela elle grandissait à chaque lecture (« plus de 3 j »).</summary>
     public const double MaxLowerBoundHours = 24;
+
+    /// <summary>Remontée (en points) tolérée comme bruit de mesure en décharge ; au-delà, c'est une recharge.</summary>
+    public const int NoiseTolerance = 2;
 
     readonly object _sync = new(); // Apply tourne sur un thread de travail, SamplesFor sur le thread d'interface
     readonly string _path;
@@ -95,8 +99,14 @@ public sealed class AutonomyEstimator
                 bool charging = r.Charge == ChargeState.Charging;
                 bool plugged = charging || r.Charge == ChargeState.Full;
 
+                // Bruit de mesure : certains appareils (souris et casques Razer, jauges en tension) oscillent de 1 à 2 points
+                // autour du vrai niveau. Une remontée de NoiseTolerance points ou moins n'est PAS une recharge : on garde
+                // l'historique et le niveau le plus bas. Sans cela, chaque oscillation effaçait la mesure et l'autonomie remontait.
+                if (!plugged && list.Count > 0 && p > list[^1].P && p - list[^1].P <= NoiseTolerance)
+                    p = list[^1].P;
+
                 if (plugged || (list.Count > 0 && p > list[^1].P))
-                    list.Clear(); // en charge, ou niveau remonté : nouvelle période de décharge
+                    list.Clear(); // en charge, ou niveau vraiment remonté : nouvelle période de décharge
 
                 if (list.Count == 0 || (r.At - list[^1].T).TotalSeconds >= 45)
                     list.Add(new Sample(r.At, p));
@@ -160,6 +170,12 @@ public sealed class AutonomyEstimator
         {
             double n = crossings.Count;
             rate = (n * m + PriorWeight * (100.0 / ratedFull)) / (n + PriorWeight);
+        }
+        else if (measured == null && hasLearned && DeviceDefaults.RatedHoursFor(r.Name) is double ratedLearned && ratedLearned > 0)
+        {
+            // Vitesse apprise seule (juste après une charge) : elle peut venir de longues périodes de repos et donner une autonomie
+            // absurde (112 h pour un casque annoncé à 50 h). On ne s'éloigne pas de plus de 1,5 × l'autonomie annoncée.
+            rate = Math.Max(learned, 100.0 / (MaxLearnedOverRated * ratedLearned));
         }
 
         if (rate is double perHour)

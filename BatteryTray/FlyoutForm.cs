@@ -305,7 +305,8 @@ sealed class FlyoutForm : Form
             bool plugged = it.IsPlugged && !it.Offline;
             Color green = Theme.ChargingColor(light);
             // couleur d'état : vert en charge, orange/rouge quand la batterie baisse, couleur d'accentuation sinon
-            Color status = it.Offline ? dimmed : plugged ? green : Theme.LevelColor(it.Percent, accent);
+            Color normalColor = AppSettings.Current.BrandColors && Brands.ColorFor(it.Name, light) is Color brandColor ? brandColor : accent;
+            Color status = it.Offline ? dimmed : plugged ? green : Theme.LevelColor(it.Percent, normalColor);
             using var lineBrush = new SolidBrush(plugged ? green : rowSub);
 
             // carte arrondie avec fin liseré ; plus claire sous la souris

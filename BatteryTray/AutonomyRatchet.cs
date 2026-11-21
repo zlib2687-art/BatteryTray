@@ -15,6 +15,9 @@ public sealed class AutonomyRatchet
     /// <summary>Au-delà de cet écart entre deux lectures, le garde-fou n'est plus fiable : la valeur précédente est oubliée.</summary>
     public const double MaxGapHours = 1;
 
+    /// <summary>Au-delà (3 jours sans lecture), même le plafond proportionnel est oublié.</summary>
+    public const double MaxResetHours = 72;
+
     readonly object _sync = new();
     readonly string? _path;
     readonly Dictionary<string, Entry> _last;
@@ -46,11 +49,20 @@ public sealed class AutonomyRatchet
                     double gap = (r.At - prev.At).TotalHours;
                     // niveau remonté (charge) ou longue absence (PC éteint, application fermée) : on repart de la nouvelle
                     // estimation. Sans cela, 48 h d'absence retiraient 48 h à la durée et affichaient « 0 h » jusqu'à la charge.
-                    if (p > prev.Percent || gap > MaxGapHours || gap < 0) { }
+                    // Une remontée de AutonomyEstimator.NoiseTolerance points ou moins est du bruit de mesure (Razer…) : le garde-fou reste actif.
+                    if (p > prev.Percent + AutonomyEstimator.NoiseTolerance || gap > MaxResetHours || gap < 0) { }
+                    else if (gap > MaxGapHours)
+                    {
+                        // longue absence sans charge : on ne retire pas le temps écoulé (le PC dormait), mais la durée ne peut pas
+                        // dépasser la précédente ramenée au niveau actuel (proportionnelle) : elle ne remonte pas quand le % baisse.
+                        if (prev.Percent > 0) shown = Math.Min(hours, prev.Hours * Math.Min(p, prev.Percent) / prev.Percent);
+                        p = Math.Min(p, prev.Percent);
+                    }
                     else
                     {
                         double elapsed = Math.Max(0, (r.At - prev.At).TotalHours);
                         shown = Math.Min(hours, Math.Max(0, prev.Hours - elapsed));
+                        p = Math.Min(p, prev.Percent); // pas de dérive : on mémorise le niveau le plus bas
                     }
                 }
                 _last[r.Id] = new Entry(p, shown, r.At);

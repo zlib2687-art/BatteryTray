@@ -17,7 +17,11 @@ public static class DeviceDefaults
         // Logitech G502 LIGHTSPEED : G HUB affichait « ~25 heures restantes » à 100 % sur ce PC (le fabricant annonce 48 à 60 h
         // sur le papier ; 25 h correspond à l'usage réel selon G HUB). Valeur de départ, remplacée par la mesure.
         ("G502 LIGHTSPEED", 25),
-    };
+
+        // Razer, autonomies annoncées par le fabricant (à confirmer : la mesure les remplace) : point de départ tant qu'aucune mesure n'existe.
+        ("BlackShark V2 Pro", 70),
+        ("Viper V3 Pro", 95),
+        ("DeathAdder V3 Pro", 90),    };
 
     public static double? RatedHoursFor(string deviceName)
     {

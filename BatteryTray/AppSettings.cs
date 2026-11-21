@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 
 namespace BatteryTray;
 
@@ -64,6 +64,8 @@ public sealed class AppSettings
     /// </summary>
     public bool StartWithWindows { get; set; } = true;
 
+    /// <summary>Couleurs de marque dans le flyout (vert Razer, bleu Logitech…) pour les appareils dont la marque est reconnue.</summary>
+    public bool BrandColors { get; set; } = true;
     public static AppSettings Current { get; set; } = new();
 
     /// <summary>Dossier des données (réglages, historique, journal). Modifiable pour les tests.</summary>

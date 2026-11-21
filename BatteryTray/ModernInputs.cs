@@ -1,4 +1,4 @@
-using System.Drawing.Drawing2D;
+﻿using System.Drawing.Drawing2D;
 
 namespace BatteryTray;
 
@@ -120,10 +120,12 @@ sealed class ModernCombo : Control
 /// <summary>Fenêtre de choix d'une <see cref="ModernCombo"/> : coins arrondis, ombre, fermeture dès qu'elle perd le focus.</summary>
 sealed class ComboPopup : Form
 {
-    const int ItemH = 36, PadV = 6;
+    const int ItemH = 36, PadV = 6, MaxRows = 7;
     readonly ModernCombo _combo;
     readonly SettingsTheme _t;
     int _hover;
+    int _top;  // premier choix visible quand la liste défile
+    int Rows => Math.Min(_combo.Items.Count, MaxRows);
 
     public ComboPopup(ModernCombo combo)
     {
@@ -139,7 +141,8 @@ sealed class ComboPopup : Form
         BackColor = _t.Card;
         Font = combo.Font;
         if (Loc.IsRtl) RightToLeft = RightToLeft.Yes;
-        Size = new Size(combo.Width, combo.Items.Count * ItemH + PadV * 2 + 2);
+        Size = new Size(combo.Width, Rows * ItemH + PadV * 2 + 2);
+        _top = Math.Clamp(combo.SelectedIndex - Rows / 2, 0, Math.Max(0, combo.Items.Count - Rows));
         Deactivate += (_, _) => Close();
     }
 
@@ -176,7 +179,21 @@ sealed class ComboPopup : Form
         Activate();
     }
 
-    int IndexAt(int y) => y < PadV || y >= Height - PadV - 2 ? -1 : (y - PadV - 1) / ItemH;
+    int IndexAt(int y) => y < PadV || y >= Height - PadV - 2 ? -1 : _top + (y - PadV - 1) / ItemH;
+
+    void ScrollTo(int hover)
+    {
+        _hover = hover;
+        if (hover < _top) _top = hover; else if (hover >= _top + Rows) _top = hover - Rows + 1;
+        Invalidate();
+    }
+
+    protected override void OnMouseWheel(MouseEventArgs e)
+    {
+        base.OnMouseWheel(e);
+        int top = Math.Clamp(_top + (e.Delta > 0 ? -1 : 1), 0, Math.Max(0, _combo.Items.Count - Rows));
+        if (top != _top) { _top = top; Invalidate(); }
+    }
 
     protected override void OnMouseMove(MouseEventArgs e)
     {
@@ -199,8 +216,12 @@ sealed class ComboPopup : Form
         switch (e.KeyCode)
         {
             case Keys.Escape: Close(); break;
-            case Keys.Down: _hover = Math.Min(n - 1, _hover + 1); Invalidate(); break;
-            case Keys.Up: _hover = Math.Max(0, _hover - 1); Invalidate(); break;
+            case Keys.Down: ScrollTo(Math.Min(n - 1, _hover + 1)); break;
+            case Keys.Up: ScrollTo(Math.Max(0, _hover - 1)); break;
+            case Keys.PageDown: ScrollTo(Math.Min(n - 1, _hover + Rows)); break;
+            case Keys.PageUp: ScrollTo(Math.Max(0, _hover - Rows)); break;
+            case Keys.Home: ScrollTo(0); break;
+            case Keys.End: ScrollTo(n - 1); break;
             case Keys.Enter or Keys.Space: if (_hover >= 0) _combo.Choose(_hover); Close(); break;
         }
     }
@@ -213,9 +234,9 @@ sealed class ComboPopup : Form
         bool rtl = Loc.IsRtl;
         using (var border = new Pen(_t.CardBorder)) g.DrawRectangle(border, 0, 0, Width - 1, Height - 1);
 
-        for (int i = 0; i < _combo.Items.Count; i++)
+        for (int i = _top; i < Math.Min(_combo.Items.Count, _top + Rows); i++)
         {
-            var row = new RectangleF(5, PadV + 1 + i * ItemH, Width - 11, ItemH - 2);
+            var row = new RectangleF(5, PadV + 1 + (i - _top) * ItemH, Width - 11, ItemH - 2);
             bool selected = i == _combo.SelectedIndex;
             if (i == _hover || selected)
             {
@@ -233,6 +254,15 @@ sealed class ComboPopup : Form
             var text = new Rectangle((int)row.X + 12, (int)row.Y, (int)row.Width - 24, (int)row.Height);
             TextRenderer.DrawText(g, _combo.Items[i].ToString() ?? "", Font, text, _t.Text,
                 TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding | (rtl ? TextFormatFlags.Right | TextFormatFlags.RightToLeft : TextFormatFlags.Left));
+        }
+        int total = _combo.Items.Count;
+        if (total > Rows)
+        {
+            float trackH = Height - 2 * PadV - 2, thumbH = Math.Max(24, trackH * Rows / total);
+            float ty = PadV + 1 + (trackH - thumbH) * _top / (total - Rows);
+            using var p = Gdi.Round(new RectangleF(rtl ? 2 : Width - 5, ty, 3, thumbH), 1.5f);
+            using var sb = new SolidBrush(_t.SubText);
+            g.FillPath(sb, p);
         }
     }
 }

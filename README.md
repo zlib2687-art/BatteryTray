@@ -16,10 +16,14 @@ pourcentage, un flyout détaillé au clic, des notifications et une autonomie es
    *Paramètres → Personnalisation → Barre des tâches → Autres icônes de barre d'état système* et activez
    BatteryTray (ou glissez les icônes du menu ^ vers la barre). Une application ne peut pas le faire à votre place.
 
-Le fichier fait environ 163 Mo (il embarque .NET : rien d'autre à installer). Il n'est pas signé : Windows peut
+Le fichier fait environ **160 Mo** (il embarque .NET, volontairement non compressé : l'application consomme ainsi ~22 Mo de RAM au lieu de ~64 Mo ; rien d'autre à installer). Il n'est pas signé : Windows peut
 afficher un avertissement SmartScreen (« Informations complémentaires » → « Exécuter quand même »).
 
 Installation silencieuse : `BatteryTray-Setup.exe /silent`.
+
+**Version portable** : `dist\BatteryTray-Portable.zip` contient `BatteryTray.exe`, à lancer directement, sans installation
+ni droit administrateur (pas de démarrage avec Windows ni de redémarrage automatique : ils viennent de l'installation).
+Les deux fichiers sont produits par `build-installer.ps1`.
 
 ## Utilisation
 
@@ -30,7 +34,18 @@ Installation silencieuse : `BatteryTray-Setup.exe /silent`.
 | **Double-clic gauche** sur une icône | Ferme le flyout et ouvre les **paramètres** |
 | Clic sur une carte du flyout | Déplie un **mini-graphique** du niveau depuis la dernière charge (échelle adaptée aux valeurs mesurées) |
 | Engrenage du flyout / clic droit → *Paramètres…* | Écran de paramètres |
-| Clic droit | Actualiser, Paramètres, Langue, notifications, Quitter |
+| Clic droit | Actualiser, Paramètres, **Historique de la batterie…**, Langue, notifications, Quitter |
+
+**Couleurs de marque** (*Paramètres → Affichage*, activées par défaut) : dans le flyout, un appareil dont la marque est reconnue
+d'après son nom (Razer, Logitech, SteelSeries, Corsair, HyperX, ASUS ROG, PlayStation, Xbox, Samsung, Apple, Jabra, JBL, Cooler Master,
+Steam, Glorious, Keychron) prend la couleur de sa marque pour la pastille et la barre de niveau ; le vert de charge, l'orange et le
+rouge restent prioritaires.
+
+**Historique de la batterie** (clic droit → *Historique de la batterie…*) : courbe par appareil sur 24 h, 7 jours ou 30 jours,
+avec dernière lecture, minimum, maximum, variation et nombre de mesures ; possibilité d'effacer l'historique d'un appareil. Seuls
+les niveaux **réellement lus** (appareil connecté, éveillé, pourcentage non estimé) sont enregistrés, au plus une mesure toutes les
+30 minutes par appareil (sauf changement d'état de charge), pendant 30 jours. Un trou de mesure interrompt la ligne : rien n'est
+inventé entre deux mesures éloignées. Fichier local `battery_history.json`, jamais envoyé nulle part.
 
 **Flyout** : une carte arrondie par appareil (liseré fin, plus claire sous la souris) avec une pastille d'icône teintée
 de la couleur d'état (couleur d'accentuation, vert en charge, orange ou rouge quand la batterie baisse, gris hors ligne),
@@ -82,15 +97,19 @@ déjà lancée, avec les vrais textes dans la langue choisie). Les notifications
 **reçoit mais n'affiche aucune bannière**. Pour être prévenu quand même : désactive ce mode, ou ajoute BatteryTray aux
 *notifications prioritaires* (Paramètres → Système → Notifications → Ne pas déranger → Définir les notifications prioritaires).
 
-**Langues** : français, arabe tunisien (affichage de droite à gauche), anglais, espagnol, portugais (Portugal),
-chinois simplifié, russe. Changement immédiat. Les traductions sont à faire relire par des locuteurs natifs.
+**Langues (20)** : français, anglais, espagnol, allemand, portugais (Portugal), portugais (Brésil), russe, ukrainien, polonais, hongrois,
+suédois, turc, vietnamien, chinois simplifié, chinois traditionnel, japonais, coréen, et — **affichées de droite à gauche** —
+arabe tunisien, persan et hébreu. Elles couvrent les mêmes langues que BatteryHub. L'application suit la langue d'affichage de Windows
+(portugais du Brésil et du Portugal, chinois simplifié et traditionnel distingués), et le menu clic droit ou les paramètres permettent d'en
+choisir une autre ; changement immédiat. Police dédiée pour le chinois, le japonais et le coréen. **Les traductions sont rédigées par une IA
+et sont à faire relire par des locuteurs natifs** (fichiers `Loc*.cs` : un texte à corriger = une ligne à modifier).
 
 **Paramètres** : une fenêtre dans le style des **Paramètres de Windows 11**, avec une navigation à gauche en quatre pages,
 un réglage par carte arrondie, de vrais interrupteurs, des listes déroulantes et des champs numériques arrondis
 (saisie au clavier, flèches, molette), et le thème clair ou sombre de Windows (barre de titre comprise).
 Les modifications ne sont appliquées qu'avec **OK**.
 - **Général** : langue, fréquence d'actualisation (1, 2, 5, 10 min), démarrage avec Windows ;
-- **Affichage** : **taille du flyout** (petit 85 %, normal 100 %, grand 125 %, très grand 150 %), seuils de couleur ;
+- **Affichage** : **couleurs de marque**, **taille du flyout** (petit 85 %, normal 100 %, grand 125 %, très grand 150 %), seuils de couleur ;
 - **Notifications** : batterie faible, charge terminée, seuil par défaut ;
 - **Appareils** : pour chaque appareil, afficher/masquer, renommer, seuil d'alerte,
   autonomie annoncée, ordre (glisser-déposer des lignes par leur marge, ou boutons Monter/Descendre).
@@ -112,7 +131,7 @@ d'un autre logiciel, plantage, processus tué), la tâche planifiée « BatteryT
 
 **Commun à tout appareil qui donne un niveau** (aucune marque n'est codée en dur) : pourcentage dans la barre, flyout,
 couleurs (orange / rouge / **vert en charge** / gris hors ligne), autonomie, temps de charge, graphique, notifications,
-renommer / masquer / ordonner, 7 langues, appareils gardés en gris quand ils se déconnectent.
+renommer / masquer / ordonner, 20 langues, appareils gardés en gris quand ils se déconnectent.
 
 **La lecture du niveau** se fait par des sources, de la plus précise à la plus générale (en cas de doublon, la première gagne) :
 
@@ -130,7 +149,91 @@ lu sans un module écrit pour son protocole, qui n'est en général pas public. 
 (Razer, Logitech). Sur ce PC, les sources génériques s'exécutent sans erreur (balayage de 269 périphériques en 0,1 s)
 mais **aucun appareil de plus n'a été trouvé** : elles n'ont donc pas pu être vérifiées sur du matériel réel.
 
-## Appareils pris en charge
+## Pilotes de marques (portés de BatteryHub)
+
+En plus des modules Razer et Logitech de l'auteur, BatteryTray lit en **lecture seule** (une requête de niveau, aucun réglage écrit)
+les appareils sans fil de nombreuses marques à récepteur propriétaire. Ces pilotes sont **portés en C#** à partir de BatteryHub
+(krisgfx9, GPL-3.0) : voir *Licence* et `NOTICE.md`. Chaque pilote ne parle qu'aux appareils qu'il reconnaît exactement (VID:PID et forme
+de la collection HID) et abandonne si la réponse n'a pas le format attendu.
+
+| Pilote | Appareils |
+|---|---|
+| **SteelSeries** | Arctis 1 / 7 / 7+ / 9 / Pro / Pro Wireless, Arctis Nova 3P / 5 / 7 / 7X / 7P / Pro Wireless, GameBuds ; souris Aerox 3 / 5 / 9 Wireless (dont Gen 2 et CS2 Dragon Lore), Prime Wireless, Rival 3 Wireless (Gen 2), Rival 650, Rival Pro |
+| **Razer BlackShark** | BlackShark V3, V3 Pro (dont Xbox), V3 X, V2 HyperSpeed, V2 Pro (2020 et 2023) ; le Barracuda X n'est pas encore porté |
+| **PlayStation** | Manettes DualShock 4, DualSense, DualSense Edge (USB ou Bluetooth), adaptateur sans fil DualShock 4 |
+| **LAMZU** | Maya X, Maya, Maya M, Tachi, Inca, Paro, Thorn, Atlantis Mini / OG Champion, Orcus, Mini (câble et récepteurs) |
+| **Corsair** | Casques Void / Void Pro / Void Elite / HS70 / HS80 ; appareils « Bragi » (Virtuoso, Void V2, HS80 MAX, souris et claviers Slipstream, Dark Core RGB Pro SE) ; Sabre V2 Pro |
+| **HyperX** | Cloud II / II Core / III / III S / Alpha / Alpha 2 / Flight / Flight S / Stinger Core / Core DTS ; souris Pulsefire Haste 2 (Core, Wireless, Mini) |
+| **Glorious / Hitscan / G-Wolves / WLMouse** | Model O / D / O- / D- / O 2 / D 2 PRO Wireless ; Hitscan Hyperlight ; G-Wolves Fenrir, HTS, HSK, HTX, HTR, VUK, Lycan, WARG… ; WLMouse YING 8K |
+| **Kysona / Pulsar / ATK / VXE / Redragon / HECATE** | Souris Kysona, Pulsar (dont X2 V3 sur 3710), ATK / VXE Dragonfly R1, Redragon M916 Pro 1K / M913 / G49, HECATE, et autres souris du protocole Compx à 17 octets |
+| **ASTRO** | Casques A50 Gen 3 / Gen 4 / A50 X (Gen 5), A20 Wireless (précise « sur la base » ; respecte le verrou d'Astro Command Center) |
+| **ASUS ROG** | Claviers Azoth / Falchion / Strix Scope II, souris Chakram / Gladius / Harpe / Keris / Pugio / Spatha / Strix (récepteur, câble ou ROG Omni Receiver), casques Pelta et Delta II, écouteurs Cetra Open (gauche / droit / boîtier) |
+| **Jabra** | Casques à protocole GN (Evolve2, Evolve3…) sur câble USB ou récepteur Link ; bases DECT exclues |
+| **JBL Quantum** | 350 / 360 / 610 (HIDV1) et 520 / 650 / 850 / 950 et variantes X (HIDV3), sur récepteur ou câble |
+| **Cooler Master** | Souris MM712 et MM731 (câble ou récepteur partagé) |
+| **Alienware** | Casque AW920H sur récepteur 2,4 GHz |
+| **Audeze** | Casques Maxwell et Maxwell 2 (récepteur ou câble USB-C) |
+| **Akko** | Souris V9 Dash Pro et Dash V9 Ultra (récepteur 2,4 GHz) |
+| **AKG** | N9 Hybrid (récepteur USB-C) |
+| **Razer Barracuda Pro** | Casque sur récepteur 2,4 GHz (active un instant le mode distant de Synapse, rien n'est mémorisé) |
+| **AJAZZ** | Clavier AK992 (récepteur 2,4 GHz) |
+| **CHERRY** | Clavier MX 3.0S Wireless (récepteur ou câble), souris XTRFY (récepteur 1K) |
+| **Endgame Gear** | Souris 4K OP1w / XM2w (v1 et v2, récepteur 4K partagé) |
+| **ENDORFY** | Casque Viro Wireless (récepteur 2,4 GHz) |
+| **EWEADN** | Souris S7 / S9 (récepteur « Gaming 2.4G » ou câble S9 Ultra) |
+| **Fantech / Redragon** | Souris Helios Go XD5 (câble ou récepteur), Redragon Invader Pro |
+| **Logitech (compléments)** | Casques G à mesure de tension (G533, G535, G633, PRO X…), appareils HID++ 1.0, récepteur PRO X3 SUPERSTRIKE, casque G435 (récepteur 0ADF) |
+| **Zowie** | Souris EC-CW, séries DW et U2 (charge déduite de la tension) |
+| **Finalmouse** | UltralightX et Starlight X (récepteurs 2,4 GHz) |
+| **Flydigi** | Manettes Vader 5 Pro et Apex 5 |
+| **Fractal Design** | Casque Scape (récepteur ou câble) |
+| **GameSir** | Nova / Nova 2 / Nova 2 Lite, Cyclone 2, Tarantula Pro et NovaPro (SAPJoy) ; le Cyclone Pro (Bluetooth LE) n'est pas encore porté |
+| **8BitDo** | Ultimate 2 / 2C / 3-mode, Pro 2 / Pro 3, SN30 Pro, SF30 Pro |
+| **Keychron** | Souris (M1…M7, 4K, 8K), trackball Nape Pro, claviers sur récepteur Link (micrologiciel patché) |
+| **MSI** | Souris VERSA 300 Elite, Clutch GM31 et GM41 |
+| **NuPhy** | Clavier WH80 (USB) |
+| **NZXT** | Souris Lift Elite Wireless |
+| **Rapoo** | Souris VT0 à VT9 (rapports passifs, jusqu'à 5 s d'attente) |
+| **Arbiter Studio** | Souris Akitsu (câble et récepteur 8K, trois versions) |
+| **Areson / Redragon** | Souris M913 Impact Elite, M915RGB-WL (récepteurs FA07 / FA08) |
+| **Chimera** | Souris Chimera V2 |
+| **DARKRIM** | Casque SHADOW (récepteur) |
+| **BEITONG** | Manettes KP20 et KP40D (récepteurs 2,4 GHz) |
+| **DAREU / Sharkoon** | Souris EM901X, A980 Pro (Togran), Sharkoon SGM50W, clavier A84 |
+| **Machenike** | Souris L7 Arctic / L7 Mix |
+| **Darmoshark** | Souris M3, M3S, M3S Pro |
+| **MAONO** | Microphone PD200W (récepteur) |
+| **MOONDROP** | Casque GM01 Pro |
+| **Niceboy** | Souris MW400 |
+| **Ninjutso** | Souris Sora V2, Ten / Ten Air |
+| **Sprime** | Souris PM1 |
+| **Fantech Raigor / Scyrox / Semico / Sinowealth** | Souris Raigor II / III (récepteur Sharkoon), Scyrox V12M, claviers Attack Shark X98 et AJAZZ AK820 Max Plus, récepteur Sinowealth 258A:002F (Redragon M690 Pro, M602-KS) |
+| **VAXEE / VGN / Zenith / Press Play** | Souris VAXEE 4K / 8K et ZYGEN NP-01S V2, casque VGN OMNISOUND, souris Zenith Pro, souris Press Play ICARUS V2 |
+| **Plantronics / Poly, Turtle Beach, Sony INZONE** | Voyager 8200 UC (BT600), Stealth 700 Gen 3, INZONE H9 II / H5 / Buds |
+| **Souris diverses** | Motospeed X6, récepteurs Xenta (Delux M900 Pro, Attack Shark X6 / R1 / X11 / V6, Inphic, ARDOR Fury V2), Delux M800 Pro, Ajazz AJ179 / AJ-series / AJ139, Incott G23 V2 / G24, Wraith W1 |
+| **Pulsar / RAWM** | Pulsar X2 V3 / X2 V3 eS et autres Sonix, souris RAWM (Leviathan V4…) et SADES |
+| **Redragon Evision / ATK** | Redragon M999, ATK V75X / Z87, claviers VGN / VXE, souris ATK Zero / VXE R1 NK / 8K Nano, casques N9 Pro / N9 Ultra (port COM) |
+| **AULA / MCHOSE / SONiX / Rongyuan** | Claviers AULA, MCHOSE, Redragon Horus Pro, AJAZZ AK820 / AK980, EPOMAKER, Lofree, Attack Shark / MonsGeek (récepteurs Rongyuan) ; souris AULA SC580, X9 / V9 ; MCHOSE L7 / M7 / A7 / A5 / G3 V2 / K7 V2, casque V9 Pro 2 |
+| **Royal Kludge** | Souris MG6 Pro |
+| **Valve / Nintendo / SteelSeries Elite / VIA** | Steam Controller, manettes Switch Pro et compatibles, Arctis Nova Elite, claviers PMO / URX / EVO80 sur récepteur 3002 |
+| **HeadsetControl** | Passerelle facultative : si `headsetcontrol.exe` est placé à côté de `BatteryTray.exe`, ses casques sont ajoutés (jamais cherché dans le PATH) |
+| **Bluetooth (diffusions et RFCOMM)** | AirPods / Beats (message de proximité BLE), écouteurs Fast Pair (gauche / droite / boîtier), Samsung Galaxy Buds, Nothing / CMF Ear ; n'écoute le BLE que si un appareil appairé est connecté |
+| **GameSir Cyclone Pro** | Niveau lu en Bluetooth LE (GATT) quand la manette est sur son récepteur 2,4 GHz |
+| **Phone Link** | Niveau du téléphone lu dans le fichier local de Microsoft Phone Link (lecture seule, aucun accès réseau) |
+
+**Ces pilotes n'ont pas été essayés sur du matériel** (aucun de ces appareils n'est branché sur le PC de l'auteur) : leur analyse de
+trames est vérifiée par des tests sur des trames synthétiques, et le comportement réel (délais, réponses) reste à confirmer par les
+utilisateurs de ces appareils. Un appareil de cette liste qui n'apparaît pas : lancez `BatteryTray.exe --dump` et joignez le rapport
+(sans numéro de série) à votre signalement. Tous les pilotes de BatteryHub sont portés, sauf ses modules génériques
+(batterie HID standard, Bluetooth, XInput, Razer), qui font double emploi avec ceux de BatteryTray.
+
+## Licence
+
+BatteryTray est distribué sous **GPL-3.0** (fichier `LICENSE`). Les pilotes de marques sont dérivés du code de BatteryHub, lui-même
+sous GPL-3.0 : le projet entier l'est donc aussi. Vous pouvez l'utiliser, le modifier et le redistribuer à condition de fournir
+le code source de votre version sous la même licence et de conserver `NOTICE.md`. Aucune garantie.
+
+## Appareils pris en charge (modules de l'auteur)
 
 | Appareil | Méthode de lecture | Résultat |
 |---|---|---|
@@ -150,7 +253,7 @@ après une mise à jour de firmware. Ils n'envoient que des requêtes de **lectu
 
 ## Ce qui n'est pas réalisable (et pourquoi)
 
-- **Widget personnalisé dans la barre des tâches** : Windows 11 a supprimé les « deskbands ». Seule la zone de notification est accessible.
+- **Widget personnalisé dans la barre des tâches** : Windows 11 a supprimé les « deskbands ». Seule la zone de notification est accessible : les pourcentages s'affichent dans les icônes, à côté du menu ^ et de l'indicateur de langue.
 - **Logo + nom + pourcentage dans une seule icône** : une icône fait 16×16 px (32×32 en haute densité). Le nom est dans l'infobulle, le détail dans le flyout.
 - **Épingler automatiquement les icônes près de l'horloge** : réservé à l'utilisateur par Windows.
 - **Pourcentage exact de la G502** : la souris ne donne que sa tension. Convertir une tension en pourcentage dépend de la charge, de la température et du vieillissement : c'est une estimation, affichée avec « ~ » (seul cas où un pourcentage n'est pas lu sur l'appareil).
@@ -173,10 +276,10 @@ powershell -ExecutionPolicy Bypass -File build-installer.ps1   # produit dist\Ba
 dotnet test BatteryTray.Tests
 ```
 
-257 tests automatiques (xUnit), dont des **tests aléatoires et d'attaque** (graine fixe : fichiers corrompus, niveaux absurdes,
+607 tests automatiques (xUnit), dont des **tests aléatoires et d'attaque** (graine fixe : fichiers corrompus, niveaux absurdes,
 noms hostiles, chemins piégés, absence de toute bibliothèque réseau) et des essais de la fenêtre des paramètres dans les
-7 langues en thème clair et sombre : estimateur d'autonomie (décharge régulière, borne basse, charge, remontée du
-niveau, intervalles ignorés, vitesse mémorisée entre deux sessions), traductions (7 langues, mêmes clés,
+20 langues en thème clair et sombre : estimateur d'autonomie (décharge régulière, borne basse, charge, remontée du
+niveau, intervalles ignorés, vitesse mémorisée entre deux sessions), traductions (20 langues, mêmes clés,
 paramètres de texte conservés, arabe seul en droite-à-gauche), formats de durée, règles de notification
 (une fois par passage de seuil, réarmement, seuil par appareil, persistance après redémarrage), masquage,
 noms et ordre des appareils, appareils hors ligne, temps de charge, batteries multiples, calcul du mini-graphique,
@@ -192,6 +295,11 @@ BatteryTray\            application (WinForms, .NET 8)
   Providers\            une source de batterie par fichier (Bluetooth, manettes, Razer, Logitech, PRO X 2)
   AutonomyEstimator.cs  estimation de l'autonomie (historique local)
   AutonomyRatchet.cs    la durée affichée ne remonte jamais tant que le niveau baisse
+  BatteryHistory.cs     historique de 30 jours (enregistrement, tronçons, résumé)
+  HistoryForm.cs        visionneuse d'historique (24 h, 7 jours, 30 jours)
+  Brands.cs             reconnaissance de la marque d'après le nom, couleurs de marque
+  Providers\Hid\        couche HID commune et pilotes de marques portés de BatteryHub (SteelSeries, Corsair, HyperX, Glorious, Kysona…)
+  Cli.cs, DemoData.cs   options --list, --dump, --demo et données d'exemple
   DeviceView.cs         masquage, noms, ordre, autonomie annoncée
   ReadingMerge.cs       doublons entre sources, nettoyage des lectures (niveaux invalides, noms)
   Notifier.cs           notifications « faible » et « charge terminée »
@@ -203,7 +311,7 @@ BatteryTray\            application (WinForms, .NET 8)
   ModernInputs.cs       liste déroulante et champ numérique façon Windows 11
   Watchdog.cs           redémarrage automatique (tâche planifiée + script)
   SafeFile.cs           écriture « tout ou rien » des fichiers de données
-  Loc.cs, Loc.Settings.cs   textes en 7 langues
+  Loc.cs, Loc.Settings.cs   textes en 20 langues (Loc.More.cs : les 13 ajoutées)
   Installer.cs          installation / désinstallation (même fichier que le programme)
 BatteryTray.Tests\      tests xUnit
 Prototype\              prototype console de l'étape de faisabilité
@@ -263,7 +371,8 @@ build-installer.ps1     construction de l'installateur
 ## Données et vie privée
 
 Tout reste sur le PC, dans `%AppData%\BatteryTray` : `settings.json` (réglages), `historique.json`
-(lectures récentes pour l'autonomie, 48 h au plus), `autonomie-affichee.json` (dernière durée affichée), `journal.txt`
+(lectures récentes pour l'autonomie, 48 h au plus), `battery_history.json` (historique de 30 jours),
+`autonomie-affichee.json` (dernière durée affichée), `journal.txt`
 (journal borné), `redemarrages.txt` (relances automatiques) et `arret-voulu.flag` (présent seulement après *Quitter*).
 Aucun appel réseau.
 
@@ -272,9 +381,17 @@ Aucun appel réseau.
 - Mémoire mesurée : 15 à 20 Mo au repos, environ 39 Mo flyout ou paramètres ouverts (objectif : moins de 50 Mo).
   La stabilité sur plusieurs jours n'est pas encore vérifiée.
 - Les notifications sont déclenchées par le code (vérifié dans les réglages et les tests) mais leur affichage à l'écran n'a pas été constaté.
-- Options de diagnostic : `--preview image.png` (aperçu des icônes), `--flyout-preview image.png 125` (aperçu du flyout à 125 %),
-  `--settings-preview image.png dark|light 0-3` (aperçu d'une page des paramètres), `--providers rapport.txt`
-  (lit chaque source une fois : durée et appareils trouvés).
+- Options en ligne de commande :
+  - `--list [fichier]` lit chaque source une fois et liste les appareils trouvés (ancien nom : `--providers fichier`) ;
+  - `--dump [fichier]` décrit les périphériques HID connectés (VID:PID, nom, collections), **sans numéro de série ni chemin de
+    périphérique**, pour signaler un appareil non pris en charge ;
+  - `--demo` affiche le flyout avec des appareils d'exemple, sans matériel et sans écrire de réglage ;
+  - `--preview image.png` (icônes), `--flyout-preview image.png 125`, `--settings-preview image.png dark|light 0-3`,
+    `--history-preview image.png dark|light 0-2` (essais visuels).
+  Sans nom de fichier, `--list` et `--dump` écrivent dans la console qui a lancé le programme.
+- **Appareils pris en charge** : les modules Razer et Logitech de l'auteur sont vérifiés sur du matériel ; les **pilotes de marques portés de
+  BatteryHub** ne le sont pas (voir *Pilotes de marques*) ; les sources génériques non plus. BatteryHub couvre beaucoup plus de marques.
+- **Langues** : 20 (voir *Langues*), traductions à faire relire par des locuteurs natifs.
 - Le **redémarrage automatique** relance l'application au plus 10 min après un arrêt inattendu (pas instantanément) et n'agit que
   pendant votre session. Le cas « *Quitter* = pas de relance » est couvert par des tests sur la logique, mais n'a pas été essayé de bout en bout.
 - Exécutable **non signé** : avertissement SmartScreen à l'installation.
