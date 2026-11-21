@@ -48,6 +48,9 @@ public sealed class HidDriversProvider : IBatteryProvider
         ("8BitDo", EightBitDoDriver.Poll),
         ("Keychron", KeychronDriver.Poll),
         ("MSI", MsiDriver.Poll),
+        ("NuPhy", NuphyDriver.Poll),
+        ("NZXT", NzxtDriver.Poll),
+        ("Rapoo", RapooDriver.Poll),
         ("Logitech G435", LogitechG435Driver.Poll),
         ("Logitech HID++ (compléments)", LogitechExtraDriver.Poll),
     };

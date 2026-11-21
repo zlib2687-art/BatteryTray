@@ -182,6 +182,18 @@ de la collection HID) et abandonne si la réponse n'a pas le format attendu.
 | **ENDORFY** | Casque Viro Wireless (récepteur 2,4 GHz) |
 | **EWEADN** | Souris S7 / S9 (récepteur « Gaming 2.4G » ou câble S9 Ultra) |
 | **Fantech / Redragon** | Souris Helios Go XD5 (câble ou récepteur), Redragon Invader Pro |
+| **Logitech (compléments)** | Casques G à mesure de tension (G533, G535, G633, PRO X…), appareils HID++ 1.0, récepteur PRO X3 SUPERSTRIKE, casque G435 (récepteur 0ADF) |
+| **Zowie** | Souris EC-CW, séries DW et U2 (charge déduite de la tension) |
+| **Finalmouse** | UltralightX et Starlight X (récepteurs 2,4 GHz) |
+| **Flydigi** | Manettes Vader 5 Pro et Apex 5 |
+| **Fractal Design** | Casque Scape (récepteur ou câble) |
+| **GameSir** | Nova / Nova 2 / Nova 2 Lite, Cyclone 2, Tarantula Pro et NovaPro (SAPJoy) ; le Cyclone Pro (Bluetooth LE) n'est pas encore porté |
+| **8BitDo** | Ultimate 2 / 2C / 3-mode, Pro 2 / Pro 3, SN30 Pro, SF30 Pro |
+| **Keychron** | Souris (M1…M7, 4K, 8K), trackball Nape Pro, claviers sur récepteur Link (micrologiciel patché) |
+| **MSI** | Souris VERSA 300 Elite, Clutch GM31 et GM41 |
+| **NuPhy** | Clavier WH80 (USB) |
+| **NZXT** | Souris Lift Elite Wireless |
+| **Rapoo** | Souris VT0 à VT9 (rapports passifs, jusqu'à 5 s d'attente) |
 
 **Ces pilotes n'ont pas été essayés sur du matériel** (aucun de ces appareils n'est branché sur le PC de l'auteur) : leur analyse de
 trames est vérifiée par des tests sur des trames synthétiques, et le comportement réel (délais, réponses) reste à confirmer par les
