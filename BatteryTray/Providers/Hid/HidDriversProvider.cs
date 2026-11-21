@@ -19,6 +19,7 @@ public sealed class HidDriversProvider : IBatteryProvider
         ("SteelSeries", SteelSeriesDriver.Poll),
         ("Razer BlackShark", RazerHeadsetDriver.Poll),
         ("LAMZU", LamzuDriver.Poll),
+        ("PlayStation", PlayStationDriver.Poll),
         ("Corsair", CorsairDriver.Poll),
         ("HyperX", HyperXDriver.Poll),
         ("Kysona / Pulsar / ATK / VXE / Redragon / HECATE", KysonaDriver.Poll),
