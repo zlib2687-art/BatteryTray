@@ -178,6 +178,10 @@ de la collection HID) et abandonne si la réponse n'a pas le format attendu.
 | **Razer Barracuda Pro** | Casque sur récepteur 2,4 GHz (active un instant le mode distant de Synapse, rien n'est mémorisé) |
 | **AJAZZ** | Clavier AK992 (récepteur 2,4 GHz) |
 | **CHERRY** | Clavier MX 3.0S Wireless (récepteur ou câble), souris XTRFY (récepteur 1K) |
+| **Endgame Gear** | Souris 4K OP1w / XM2w (v1 et v2, récepteur 4K partagé) |
+| **ENDORFY** | Casque Viro Wireless (récepteur 2,4 GHz) |
+| **EWEADN** | Souris S7 / S9 (récepteur « Gaming 2.4G » ou câble S9 Ultra) |
+| **Fantech / Redragon** | Souris Helios Go XD5 (câble ou récepteur), Redragon Invader Pro |
 
 **Ces pilotes n'ont pas été essayés sur du matériel** (aucun de ces appareils n'est branché sur le PC de l'auteur) : leur analyse de
 trames est vérifiée par des tests sur des trames synthétiques, et le comportement réel (délais, réponses) reste à confirmer par les
@@ -234,7 +238,7 @@ powershell -ExecutionPolicy Bypass -File build-installer.ps1   # produit dist\Ba
 dotnet test BatteryTray.Tests
 ```
 
-465 tests automatiques (xUnit), dont des **tests aléatoires et d'attaque** (graine fixe : fichiers corrompus, niveaux absurdes,
+475 tests automatiques (xUnit), dont des **tests aléatoires et d'attaque** (graine fixe : fichiers corrompus, niveaux absurdes,
 noms hostiles, chemins piégés, absence de toute bibliothèque réseau) et des essais de la fenêtre des paramètres dans les
 20 langues en thème clair et sombre : estimateur d'autonomie (décharge régulière, borne basse, charge, remontée du
 niveau, intervalles ignorés, vitesse mémorisée entre deux sessions), traductions (20 langues, mêmes clés,

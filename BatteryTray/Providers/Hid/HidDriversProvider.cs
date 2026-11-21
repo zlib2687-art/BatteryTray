@@ -35,6 +35,10 @@ public sealed class HidDriversProvider : IBatteryProvider
         ("Razer Barracuda Pro", BarracudaProDriver.Poll),
         ("AJAZZ", AjazzDriver.Poll),
         ("CHERRY", CherryDriver.Poll),
+        ("Endgame Gear", EndgameDriver.Poll),
+        ("ENDORFY", EndorfyDriver.Poll),
+        ("EWEADN", EweadnDriver.Poll),
+        ("Fantech", FantechDriver.Poll),
     };
 
     /// <summary>Durée maximale cumulée d'une lecture : au-delà, les pilotes restants sont sautés jusqu'à la lecture suivante.</summary>
