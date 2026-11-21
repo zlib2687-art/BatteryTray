@@ -32,7 +32,7 @@ public class TurtleBeachDriverTests
         Assert.Equal(-1, TurtleBeachDriver.FindLevel("{\"KVP\":{\"240\":\"50\"}}"));                       // pas un GSI
         var r = new byte[62]; r[0] = 7; r[1] = 4; r[3] = (byte)'{'; r[4] = (byte)'"'; r[5] = (byte)'O'; r[6] = (byte)'R';
         Assert.Equal("{\"OR", TurtleBeachDriver.Payload(r)); Assert.Equal("", TurtleBeachDriver.Payload(new byte[] { 6, 1, 0, 65 }));
-        Assert.Equal("Turtle Beach Stealth 700X Gen 3", TurtleBeachDriver.ModelName("Stealth 700X Gen 3")); Assert.Equal("Turtle Beach X", TurtleBeachDriver.ModelName("turtle beach X"));
+        Assert.Equal("Turtle Beach Stealth 700X Gen 3", TurtleBeachDriver.ModelName("Stealth 700X Gen 3")); Assert.Equal("turtle beach X", TurtleBeachDriver.ModelName("turtle beach X")); // déjà préfixé : inchangé
     }
 }
 
