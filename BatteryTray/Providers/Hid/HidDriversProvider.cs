@@ -95,6 +95,8 @@ public sealed class HidDriversProvider : IBatteryProvider
         ("SteelSeries Arctis Nova Elite", SteelSeriesEliteDriver.Poll),
         ("Claviers VIA / PMO Hub", ViaDongleDriver.Poll),
         ("HeadsetControl (facultatif)", HeadsetControlDriver.Poll),
+        ("Apple AirPods / Beats (BLE)", AirPodsDriver.Poll),
+        ("Fast Pair (BLE)", FastPairDriver.Poll),
         ("SONiX (AJAZZ, EPOMAKER, Lofree…)", SonixDriver.Poll),
         ("Royal Kludge", RoyalKludgeDriver.Poll),
         ("Rongyuan (Attack Shark / Ajazz / MonsGeek)", RongyuanDriver.Poll),
