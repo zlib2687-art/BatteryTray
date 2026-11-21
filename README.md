@@ -217,12 +217,15 @@ de la collection HID) et abandonne si la réponse n'a pas le format attendu.
 | **Royal Kludge** | Souris MG6 Pro |
 | **Valve / Nintendo / SteelSeries Elite / VIA** | Steam Controller, manettes Switch Pro et compatibles, Arctis Nova Elite, claviers PMO / URX / EVO80 sur récepteur 3002 |
 | **HeadsetControl** | Passerelle facultative : si `headsetcontrol.exe` est placé à côté de `BatteryTray.exe`, ses casques sont ajoutés (jamais cherché dans le PATH) |
+| **Bluetooth (diffusions et RFCOMM)** | AirPods / Beats (message de proximité BLE), écouteurs Fast Pair (gauche / droite / boîtier), Samsung Galaxy Buds, Nothing / CMF Ear ; n'écoute le BLE que si un appareil appairé est connecté |
+| **GameSir Cyclone Pro** | Niveau lu en Bluetooth LE (GATT) quand la manette est sur son récepteur 2,4 GHz |
+| **Phone Link** | Niveau du téléphone lu dans le fichier local de Microsoft Phone Link (lecture seule, aucun accès réseau) |
 
 **Ces pilotes n'ont pas été essayés sur du matériel** (aucun de ces appareils n'est branché sur le PC de l'auteur) : leur analyse de
 trames est vérifiée par des tests sur des trames synthétiques, et le comportement réel (délais, réponses) reste à confirmer par les
 utilisateurs de ces appareils. Un appareil de cette liste qui n'apparaît pas : lancez `BatteryTray.exe --dump` et joignez le rapport
-(sans numéro de série) à votre signalement. Les pilotes Bluetooth LE de BatteryHub (AirPods, Galaxy Buds, Nothing Ear, Fast Pair, Phone Link, GameSir Cyclone Pro) ne sont pas encore portés (ils passent par l'API Bluetooth LE de Windows). Les modules génériques de BatteryHub
-(batterie HID standard, Bluetooth, XInput, Razer) font double emploi avec ceux de BatteryTray et n'ont pas été repris.
+(sans numéro de série) à votre signalement. Tous les pilotes de BatteryHub sont portés, sauf ses modules génériques
+(batterie HID standard, Bluetooth, XInput, Razer), qui font double emploi avec ceux de BatteryTray.
 
 ## Licence
 
@@ -273,7 +276,7 @@ powershell -ExecutionPolicy Bypass -File build-installer.ps1   # produit dist\Ba
 dotnet test BatteryTray.Tests
 ```
 
-590 tests automatiques (xUnit), dont des **tests aléatoires et d'attaque** (graine fixe : fichiers corrompus, niveaux absurdes,
+607 tests automatiques (xUnit), dont des **tests aléatoires et d'attaque** (graine fixe : fichiers corrompus, niveaux absurdes,
 noms hostiles, chemins piégés, absence de toute bibliothèque réseau) et des essais de la fenêtre des paramètres dans les
 20 langues en thème clair et sombre : estimateur d'autonomie (décharge régulière, borne basse, charge, remontée du
 niveau, intervalles ignorés, vitesse mémorisée entre deux sessions), traductions (20 langues, mêmes clés,
