@@ -171,6 +171,9 @@ de la collection HID) et abandonne si la réponse n'a pas le format attendu.
 | **Jabra** | Casques à protocole GN (Evolve2, Evolve3…) sur câble USB ou récepteur Link ; bases DECT exclues |
 | **JBL Quantum** | 350 / 360 / 610 (HIDV1) et 520 / 650 / 850 / 950 et variantes X (HIDV3), sur récepteur ou câble |
 | **Cooler Master** | Souris MM712 et MM731 (câble ou récepteur partagé) |
+| **Alienware** | Casque AW920H sur récepteur 2,4 GHz |
+| **Audeze** | Casques Maxwell et Maxwell 2 (récepteur ou câble USB-C) |
+| **Akko** | Souris V9 Dash Pro et Dash V9 Ultra (récepteur 2,4 GHz) |
 
 **Ces pilotes n'ont pas été essayés sur du matériel** (aucun de ces appareils n'est branché sur le PC de l'auteur) : leur analyse de
 trames est vérifiée par des tests sur des trames synthétiques, et le comportement réel (délais, réponses) reste à confirmer par les
@@ -227,7 +230,7 @@ powershell -ExecutionPolicy Bypass -File build-installer.ps1   # produit dist\Ba
 dotnet test BatteryTray.Tests
 ```
 
-447 tests automatiques (xUnit), dont des **tests aléatoires et d'attaque** (graine fixe : fichiers corrompus, niveaux absurdes,
+455 tests automatiques (xUnit), dont des **tests aléatoires et d'attaque** (graine fixe : fichiers corrompus, niveaux absurdes,
 noms hostiles, chemins piégés, absence de toute bibliothèque réseau) et des essais de la fenêtre des paramètres dans les
 20 langues en thème clair et sombre : estimateur d'autonomie (décharge régulière, borne basse, charge, remontée du
 niveau, intervalles ignorés, vitesse mémorisée entre deux sessions), traductions (20 langues, mêmes clés,
