@@ -9,8 +9,9 @@ pourcentage, un flyout détaillé au clic, des notifications et une autonomie es
 ## Installation
 
 1. Lancez `dist\BatteryTray-Setup.exe` (double-clic).
-2. Le programme est copié dans `%LocalAppData%\Programs\BatteryTray`, se lance avec Windows et crée un
-   raccourci dans le menu Démarrer. Désinstallation : **Paramètres → Applications**.
+2. Le programme est copié dans `%LocalAppData%\Programs\BatteryTray`, se lance avec Windows, crée un
+   raccourci dans le menu Démarrer et une tâche planifiée de **redémarrage automatique** (voir plus bas).
+   Désinstallation : **Paramètres → Applications** (elle retire aussi la tâche).
 3. **Épinglez les icônes** : Windows 11 range les nouvelles icônes dans le menu **^**. Ouvrez
    *Paramètres → Personnalisation → Barre des tâches → Autres icônes de barre d'état système* et activez
    BatteryTray (ou glissez les icônes du menu ^ vers la barre). Une application ne peut pas le faire à votre place.
@@ -25,10 +26,16 @@ Installation silencieuse : `BatteryTray-Setup.exe /silent`.
 | Action | Effet |
 |---|---|
 | Survoler une icône | Infobulle : nom, pourcentage, « en charge » ou autonomie, heure de lecture |
-| Clic gauche sur une icône | Flyout « Périphériques » (un appareil par ligne, barre de niveau) |
-| Clic sur une ligne du flyout | Déplie un **mini-graphique** du niveau depuis la dernière charge (échelle adaptée aux valeurs mesurées) |
+| Clic gauche sur une icône | Flyout « Périphériques » (une carte par appareil) |
+| **Double-clic gauche** sur une icône | Ferme le flyout et ouvre les **paramètres** |
+| Clic sur une carte du flyout | Déplie un **mini-graphique** du niveau depuis la dernière charge (échelle adaptée aux valeurs mesurées) |
 | Engrenage du flyout / clic droit → *Paramètres…* | Écran de paramètres |
 | Clic droit | Actualiser, Paramètres, Langue, notifications, Quitter |
+
+**Flyout** : une carte arrondie par appareil (liseré fin, plus claire sous la souris) avec une pastille d'icône teintée
+de la couleur d'état (couleur d'accentuation, vert en charge, orange ou rouge quand la batterie baisse, gris hors ligne),
+le nom, une ligne d'état (autonomie, charge, heure de lecture), le pourcentage en grand et une barre de niveau arrondie.
+Coins arrondis et fond Acrylic de Windows 11, thème clair ou sombre suivi, affichage inversé pour l'arabe, taille réglable.
 
 **Couleurs** : le chiffre est blanc (ou noir sur barre claire) ; orange sous 40 %, rouge à 15 % et moins
 (réglable). Un appareil **branché / en charge** passe en **vert** : chiffre de l'icône, pourcentage, barre de niveau et
@@ -39,7 +46,10 @@ hors ligne est gris. La barre de niveau et le texte du flyout donnent une inform
 - *en charge* quand l'appareil charge ;
 - « **reste ≈ 5 h 31 min** » : estimation d'après la vitesse de décharge observée sur cet appareil. La vitesse est la
   pente niveau = f(temps) passant par les **instants où le niveau change** (au moins 3 changements répartis sur au
-  moins 30 min). La durée est un **compte à rebours** : elle diminue entre deux baisses et ne remonte jamais toute seule.
+  moins 30 min). Tant que l'autonomie annoncée du modèle est connue, elle est **mélangée à la mesure** (poids de 6 changements) :
+  quelques changements espacés, par exemple pendant que l'appareil est au repos, ne donnent plus une durée irréaliste.
+  La durée est un **compte à rebours** : elle diminue entre deux baisses et **ne remonte jamais tant que le niveau baisse**
+  (garde-fou `AutonomyRatchet` : au plus la valeur précédente moins le temps écoulé ; remis à zéro par une charge ou une absence de plus d'1 h) ;
   (L'ancienne méthode « points perdus ÷ heures écoulées » faisait monter la durée tant que le niveau ne bougeait pas :
   21 h, 24 h, 28 h… puis retombait à la baisse suivante ; elle a été abandonnée, ainsi que les vitesses qu'elle avait apprises) ;
 - « **reste plus de 24 h** » : borne basse, tant que le niveau n'a pas baissé. Si le niveau n'a pas bougé pendant T,
@@ -75,14 +85,28 @@ déjà lancée, avec les vrais textes dans la langue choisie). Les notifications
 **Langues** : français, arabe tunisien (affichage de droite à gauche), anglais, espagnol, portugais (Portugal),
 chinois simplifié, russe. Changement immédiat. Les traductions sont à faire relire par des locuteurs natifs.
 
-**Paramètres** : langue, **taille du flyout** (petit 85 %, normal 100 %, grand 125 %, très grand 150 %),
-fréquence d'actualisation (1, 2, 5, 10 min), démarrage avec Windows, notifications,
-seuil par défaut, seuils de couleur, et pour chaque appareil : afficher/masquer, renommer, seuil d'alerte,
-autonomie annoncée, ordre (glisser-déposer des lignes par leur marge, ou boutons Monter/Descendre).
+**Paramètres** : une fenêtre dans le style des **Paramètres de Windows 11**, avec une navigation à gauche en quatre pages,
+un réglage par carte arrondie, de vrais interrupteurs, des listes déroulantes et des champs numériques arrondis
+(saisie au clavier, flèches, molette), et le thème clair ou sombre de Windows (barre de titre comprise).
+Les modifications ne sont appliquées qu'avec **OK**.
+- **Général** : langue, fréquence d'actualisation (1, 2, 5, 10 min), démarrage avec Windows ;
+- **Affichage** : **taille du flyout** (petit 85 %, normal 100 %, grand 125 %, très grand 150 %), seuils de couleur ;
+- **Notifications** : batterie faible, charge terminée, seuil par défaut ;
+- **Appareils** : pour chaque appareil, afficher/masquer, renommer, seuil d'alerte,
+  autonomie annoncée, ordre (glisser-déposer des lignes par leur marge, ou boutons Monter/Descendre).
 Un appareil qui ne donne aucun niveau est masqué d'office, puis réaffiché automatiquement dès qu'un niveau existe
 (un masquage choisi par vous n'est jamais défait). Aucun pourcentage n'est jamais inventé.
 
 **Pictogrammes** : casque, souris, clavier, manette, webcam, micro (autres appareils : forme neutre).
+
+**Redémarrage automatique** : si l'application s'arrête sans que vous ayez choisi *Quitter* (arrêt forcé par la mise à jour
+d'un autre logiciel, plantage, processus tué), la tâche planifiée « BatteryTray surveillance » la relance au plus
+**10 minutes** plus tard.
+- Elle exécute `surveiller.vbs` avec wscript, **sans aucune fenêtre** (rien ne sort un jeu du plein écran), pendant votre
+  session, sans droits administrateur, même sur batterie.
+- Le menu *Quitter* écrit un fichier-témoin (`arret-voulu.flag`) : la tâche ne relance alors rien ; l'application le supprime
+  à son démarrage. Si **Démarrer avec Windows** est désactivé dans les paramètres, la tâche ne relance pas non plus.
+- Chaque relance est notée dans `%AppData%\BatteryTray\redemarrages.txt`. La tâche est retirée à la désinstallation.
 
 ## Quelle que soit la marque : ce qui est commun et ce qui dépend de l'appareil
 
@@ -112,7 +136,7 @@ mais **aucun appareil de plus n'a été trouvé** : elles n'ont donc pas pu êtr
 |---|---|---|
 | Razer DeathAdder V4 Pro | Rapport de fonctionnalité Razer (classe 0x07, commande 0x80). Protocole rétro-ingénierié par la communauté (OpenRazer), **non documenté par Razer** | ✅ Fonctionne. 100 % = Razer Synapse |
 | Logitech PRO X 2 LIGHTSPEED | Rapport 0x51 sur la collection vendeur 0xFFA0. Protocole décrit dans un patch noyau Linux citant HeadsetControl, **non documenté par Logitech** | ✅ Fonctionne. 75 % = G HUB |
-| Logitech G502 LIGHTSPEED | HID++ 2.0, feature 0x1001 (tension) | ⚠️ La souris ne donne que sa tension (≈ 4204 mV), **aucun pourcentage** et aucune estimation : appareil masqué par défaut (réaffichable dans les paramètres, il apparaît alors avec « — ») |
+| Logitech G502 LIGHTSPEED | HID++ 2.0, feature 0x1001 (tension) | ⚠️ La souris ne donne que sa tension (≈ 4204 mV) : le pourcentage est **estimé** d'après une courbe Li-ion typique (médiane des 5 dernières tensions) et toujours affiché avec « ~ ». Câble branché détecté par l'état de la mesure. Grise quand la souris dort |
 | Écouteurs Bluetooth LE à batteries séparées | Plusieurs services GATT Battery 0x180F + descripteur Presentation Format 0x2904 (gauche = 0x000E, droite = 0x000F) | ❔ Code présent, **non testé** ; beaucoup d'écouteurs (AirPods…) n'exposent pas leurs batteries à Windows |
 | Micros sans fil Bluetooth | Mêmes sources Bluetooth que ci-dessus ; reconnus par leur nom (micro, mic, DJI Mic, RØDE…), pictogramme micro | ❔ **Non testé** (aucun micro sans fil appairé) |
 | Micros à récepteur propriétaire (DJI Mic, RØDE Wireless, Hollyland…) | — | ❌ Protocoles non publics : il faudrait un module par marque |
@@ -129,7 +153,7 @@ après une mise à jour de firmware. Ils n'envoient que des requêtes de **lectu
 - **Widget personnalisé dans la barre des tâches** : Windows 11 a supprimé les « deskbands ». Seule la zone de notification est accessible.
 - **Logo + nom + pourcentage dans une seule icône** : une icône fait 16×16 px (32×32 en haute densité). Le nom est dans l'infobulle, le détail dans le flyout.
 - **Épingler automatiquement les icônes près de l'horloge** : réservé à l'utilisateur par Windows.
-- **Pourcentage de la G502** : la souris ne donne que sa tension. Convertir une tension en pourcentage dépend de la charge, de la température et du vieillissement : le projet n'affiche donc aucun pourcentage pour cet appareil (une estimation a été essayée puis retirée).
+- **Pourcentage exact de la G502** : la souris ne donne que sa tension. Convertir une tension en pourcentage dépend de la charge, de la température et du vieillissement : c'est une estimation, affichée avec « ~ » (seul cas où un pourcentage n'est pas lu sur l'appareil).
 - **Appareils à dongle propriétaire d'une autre marque** (SteelSeries, Corsair, HyperX…) : aucune API publique ; il faut un module par marque.
 - **Mica pur** : le flyout utilise Acrylic (fond DWM) avec un voile pour la lisibilité.
 - **Notification « toast » riche** : elles passent par `NotifyIcon.ShowBalloonTip` (API officielle, sans packaging). Elles sont masquées si Windows est en mode « Ne pas déranger ».
@@ -149,7 +173,9 @@ powershell -ExecutionPolicy Bypass -File build-installer.ps1   # produit dist\Ba
 dotnet test BatteryTray.Tests
 ```
 
-180 tests automatiques (xUnit) : estimateur d'autonomie (décharge régulière, borne basse, charge, remontée du
+257 tests automatiques (xUnit), dont des **tests aléatoires et d'attaque** (graine fixe : fichiers corrompus, niveaux absurdes,
+noms hostiles, chemins piégés, absence de toute bibliothèque réseau) et des essais de la fenêtre des paramètres dans les
+7 langues en thème clair et sombre : estimateur d'autonomie (décharge régulière, borne basse, charge, remontée du
 niveau, intervalles ignorés, vitesse mémorisée entre deux sessions), traductions (7 langues, mêmes clés,
 paramètres de texte conservés, arabe seul en droite-à-gauche), formats de durée, règles de notification
 (une fois par passage de seuil, réarmement, seuil par appareil, persistance après redémarrage), masquage,
@@ -165,11 +191,18 @@ Razer Synapse et Logitech G HUB).
 BatteryTray\            application (WinForms, .NET 8)
   Providers\            une source de batterie par fichier (Bluetooth, manettes, Razer, Logitech, PRO X 2)
   AutonomyEstimator.cs  estimation de l'autonomie (historique local)
+  AutonomyRatchet.cs    la durée affichée ne remonte jamais tant que le niveau baisse
   DeviceView.cs         masquage, noms, ordre, autonomie annoncée
+  ReadingMerge.cs       doublons entre sources, nettoyage des lectures (niveaux invalides, noms)
   Notifier.cs           notifications « faible » et « charge terminée »
-  TrayManager.cs        icônes de la zone de notification
+  TrayManager.cs        icônes de la zone de notification (clic, double-clic)
+  ClickGate.cs          distingue clic simple et double-clic
   FlyoutForm.cs         flyout
-  SettingsForm.cs       écran de paramètres
+  SettingsForm.cs       écran de paramètres (style Windows 11)
+  ModernControls.cs     thème, cartes, interrupteur, boutons, navigation
+  ModernInputs.cs       liste déroulante et champ numérique façon Windows 11
+  Watchdog.cs           redémarrage automatique (tâche planifiée + script)
+  SafeFile.cs           écriture « tout ou rien » des fichiers de données
   Loc.cs, Loc.Settings.cs   textes en 7 langues
   Installer.cs          installation / désinstallation (même fichier que le programme)
 BatteryTray.Tests\      tests xUnit
@@ -182,8 +215,12 @@ build-installer.ps1     construction de l'installateur
 - Une lecture qui plante ou qui se bloque (dongle muet, appareil Bluetooth qui ne répond pas) ne fige jamais les mises à jour :
   délais sur toutes les opérations Bluetooth/HID, filet d'exceptions, et une lecture bloquée plus de 2 min est abandonnée.
 - Les erreurs imprévues sont écrites dans `journal.txt` au lieu d'afficher la boîte d'erreur de .NET.
-- Un fichier de réglages abîmé ou modifié à la main (listes `null`, valeurs absurdes) est réparé au chargement.
+- Un fichier de réglages, d'historique ou d'état abîmé ou modifié à la main (listes `null`, valeurs absurdes) est réparé au chargement.
+- Les fichiers de données sont écrits « tout ou rien » : un arrêt brutal pendant l'écriture ne les tronque plus.
+- Les lectures venues des appareils sont nettoyées : un niveau hors 0–100 (par exemple 255 = « inconnu ») devient « pas de niveau »,
+  les noms trop longs ou contenant des caractères de contrôle sont corrigés.
 - L'historique d'autonomie n'est pas réécrit à chaque lecture (au plus toutes les 5 min, et à la fermeture).
+- Si l'application s'arrête de façon inattendue, elle est relancée automatiquement (voir *Redémarrage automatique*).
 - Les icônes gardent un ordre de création fixe pour que Windows conserve leur **épinglage** même si un appareil est
   masqué ou revient plus tard.
 - `BatteryTray.exe --settings` ouvre les paramètres de l'instance déjà lancée (pas de seconde copie qui écraserait les réglages).
@@ -226,7 +263,9 @@ build-installer.ps1     construction de l'installateur
 ## Données et vie privée
 
 Tout reste sur le PC, dans `%AppData%\BatteryTray` : `settings.json` (réglages), `historique.json`
-(lectures récentes pour l'autonomie, 48 h au plus), `journal.txt` (journal borné). Aucun appel réseau.
+(lectures récentes pour l'autonomie, 48 h au plus), `autonomie-affichee.json` (dernière durée affichée), `journal.txt`
+(journal borné), `redemarrages.txt` (relances automatiques) et `arret-voulu.flag` (présent seulement après *Quitter*).
+Aucun appel réseau.
 
 ## Limites connues
 
@@ -234,4 +273,8 @@ Tout reste sur le PC, dans `%AppData%\BatteryTray` : `settings.json` (réglages)
   La stabilité sur plusieurs jours n'est pas encore vérifiée.
 - Les notifications sont déclenchées par le code (vérifié dans les réglages et les tests) mais leur affichage à l'écran n'a pas été constaté.
 - Options de diagnostic : `--preview image.png` (aperçu des icônes), `--flyout-preview image.png 125` (aperçu du flyout à 125 %),
-  `--providers rapport.txt` (lit chaque source une fois : durée et appareils trouvés).
+  `--settings-preview image.png dark|light 0-3` (aperçu d'une page des paramètres), `--providers rapport.txt`
+  (lit chaque source une fois : durée et appareils trouvés).
+- Le **redémarrage automatique** relance l'application au plus 10 min après un arrêt inattendu (pas instantanément) et n'agit que
+  pendant votre session. Le cas « *Quitter* = pas de relance » est couvert par des tests sur la logique, mais n'a pas été essayé de bout en bout.
+- Exécutable **non signé** : avertissement SmartScreen à l'installation.
