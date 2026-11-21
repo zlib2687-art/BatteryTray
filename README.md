@@ -207,12 +207,22 @@ de la collection HID) et abandonne si la réponse n'a pas le format attendu.
 | **Niceboy** | Souris MW400 |
 | **Ninjutso** | Souris Sora V2, Ten / Ten Air |
 | **Sprime** | Souris PM1 |
+| **Fantech Raigor / Scyrox / Semico / Sinowealth** | Souris Raigor II / III (récepteur Sharkoon), Scyrox V12M, claviers Attack Shark X98 et AJAZZ AK820 Max Plus, récepteur Sinowealth 258A:002F (Redragon M690 Pro, M602-KS) |
+| **VAXEE / VGN / Zenith / Press Play** | Souris VAXEE 4K / 8K et ZYGEN NP-01S V2, casque VGN OMNISOUND, souris Zenith Pro, souris Press Play ICARUS V2 |
+| **Plantronics / Poly, Turtle Beach, Sony INZONE** | Voyager 8200 UC (BT600), Stealth 700 Gen 3, INZONE H9 II / H5 / Buds |
+| **Souris diverses** | Motospeed X6, récepteurs Xenta (Delux M900 Pro, Attack Shark X6 / R1 / X11 / V6, Inphic, ARDOR Fury V2), Delux M800 Pro, Ajazz AJ179 / AJ-series / AJ139, Incott G23 V2 / G24, Wraith W1 |
+| **Pulsar / RAWM** | Pulsar X2 V3 / X2 V3 eS et autres Sonix, souris RAWM (Leviathan V4…) et SADES |
+| **Redragon Evision / ATK** | Redragon M999, ATK V75X / Z87, claviers VGN / VXE, souris ATK Zero / VXE R1 NK / 8K Nano, casques N9 Pro / N9 Ultra (port COM) |
+| **AULA / MCHOSE / SONiX / Rongyuan** | Claviers AULA, MCHOSE, Redragon Horus Pro, AJAZZ AK820 / AK980, EPOMAKER, Lofree, Attack Shark / MonsGeek (récepteurs Rongyuan) ; souris AULA SC580, X9 / V9 ; MCHOSE L7 / M7 / A7 / A5 / G3 V2 / K7 V2, casque V9 Pro 2 |
+| **Royal Kludge** | Souris MG6 Pro |
+| **Valve / Nintendo / SteelSeries Elite / VIA** | Steam Controller, manettes Switch Pro et compatibles, Arctis Nova Elite, claviers PMO / URX / EVO80 sur récepteur 3002 |
+| **HeadsetControl** | Passerelle facultative : si `headsetcontrol.exe` est placé à côté de `BatteryTray.exe`, ses casques sont ajoutés (jamais cherché dans le PATH) |
 
 **Ces pilotes n'ont pas été essayés sur du matériel** (aucun de ces appareils n'est branché sur le PC de l'auteur) : leur analyse de
 trames est vérifiée par des tests sur des trames synthétiques, et le comportement réel (délais, réponses) reste à confirmer par les
 utilisateurs de ces appareils. Un appareil de cette liste qui n'apparaît pas : lancez `BatteryTray.exe --dump` et joignez le rapport
-(sans numéro de série) à votre signalement. Les autres familles de BatteryHub (Logitech additionnels, Razer Barracuda X, Switch Pro, Steam Controller, MSI,
-Keychron, Endgame, NuPhy, claviers SONiX/AULA/MCHOSE, etc.) ne sont pas encore portées.
+(sans numéro de série) à votre signalement. Les pilotes Bluetooth LE de BatteryHub (AirPods, Galaxy Buds, Nothing Ear, Fast Pair, Phone Link, GameSir Cyclone Pro) ne sont pas encore portés (ils passent par l'API Bluetooth LE de Windows). Les modules génériques de BatteryHub
+(batterie HID standard, Bluetooth, XInput, Razer) font double emploi avec ceux de BatteryTray et n'ont pas été repris.
 
 ## Licence
 
@@ -263,7 +273,7 @@ powershell -ExecutionPolicy Bypass -File build-installer.ps1   # produit dist\Ba
 dotnet test BatteryTray.Tests
 ```
 
-535 tests automatiques (xUnit), dont des **tests aléatoires et d'attaque** (graine fixe : fichiers corrompus, niveaux absurdes,
+590 tests automatiques (xUnit), dont des **tests aléatoires et d'attaque** (graine fixe : fichiers corrompus, niveaux absurdes,
 noms hostiles, chemins piégés, absence de toute bibliothèque réseau) et des essais de la fenêtre des paramètres dans les
 20 langues en thème clair et sombre : estimateur d'autonomie (décharge régulière, borne basse, charge, remontée du
 niveau, intervalles ignorés, vitesse mémorisée entre deux sessions), traductions (20 langues, mêmes clés,
