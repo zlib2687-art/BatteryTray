@@ -72,6 +72,9 @@ public sealed class HidDriversProvider : IBatteryProvider
         ("VGN", VgnDriver.Poll),
         ("Zenith", ZenithDriver.Poll),
         ("Press Play", PressPlayDriver.Poll),
+        ("Plantronics / Poly", PlantronicsDriver.Poll),
+        ("Turtle Beach", TurtleBeachDriver.Poll),
+        ("Sony INZONE", SonyInzoneDriver.Poll),
         ("Logitech G435", LogitechG435Driver.Poll),
         ("Logitech HID++ (compléments)", LogitechExtraDriver.Poll),
     };
