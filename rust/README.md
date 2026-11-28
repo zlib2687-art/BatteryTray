@@ -1,7 +1,7 @@
 # BatteryTray (version Rust)
 
 Niveau de batterie de périphériques sans fil dans la zone de notification de Windows 11, sans moteur à installer.
-Version légère et partielle de BatteryTray (C#) : environ 500 Ko, quelques Mo de mémoire engagée.
+Réécriture en Rust de BatteryTray : environ 500 Ko, quelques Mo de mémoire engagée.
 
 ## Appareils pris en charge
 
