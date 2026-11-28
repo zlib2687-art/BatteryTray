@@ -97,7 +97,7 @@ impl State {
         let mut text = String::new();
         for d in &self.devices {
             let r = &d.reading;
-            let kind = if r.kind == Kind::Headset { "casque" } else { "souris" };
+            let kind = kind_code(r.kind);
             let name = r.name.replace(['\t', '\r', '\n'], " ");
             text += &format!(
                 "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
@@ -114,6 +114,23 @@ impl State {
     }
 }
 
+const KINDS: [(Kind, &str); 6] = [
+    (Kind::Mouse, "souris"),
+    (Kind::Headset, "casque"),
+    (Kind::Keyboard, "clavier"),
+    (Kind::Gamepad, "manette"),
+    (Kind::Microphone, "micro"),
+    (Kind::Other, "autre"),
+];
+
+fn kind_code(kind: Kind) -> &'static str {
+    KINDS.iter().find(|k| k.0 == kind).map_or("autre", |k| k.1)
+}
+
+fn kind_from(code: &str) -> Kind {
+    KINDS.iter().find(|k| k.1 == code).map_or(Kind::Other, |k| k.0)
+}
+
 fn parse_line(line: &str) -> Option<Device> {
     let f: Vec<&str> = line.split('\t').collect();
     if f.len() != 8 {
@@ -122,10 +139,11 @@ fn parse_line(line: &str) -> Option<Device> {
     let reading = Reading {
         id: f[0].into(),
         name: f[1].into(),
-        kind: if f[2] == "casque" { Kind::Headset } else { Kind::Mouse },
+        kind: kind_from(f[2]),
         percent: f[3].parse().ok().filter(|&p| p <= 100)?,
         charging: false,
         estimated: f[4] == "1",
+        pointer: Default::default(),
     };
     Some(Device { reading, seen: f[5].parse().ok()?, online: false, estimate: Estimate::None, low_notified: f[6] == "1", full_notified: f[7] == "1" })
 }
@@ -135,7 +153,7 @@ mod tests {
     use super::*;
 
     fn reading(percent: u8, charging: bool) -> Reading {
-        Reading { id: "a".into(), name: "A".into(), kind: Kind::Mouse, percent, charging, estimated: false }
+        Reading { id: "a".into(), name: "A".into(), kind: Kind::Mouse, percent, charging, estimated: false, pointer: Default::default() }
     }
 
     #[test]

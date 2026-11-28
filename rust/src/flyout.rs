@@ -3,12 +3,14 @@
 use crate::autonomy::Sample;
 use crate::devices::Kind;
 use crate::gfx::{rect, theme, Align, Canvas, Rect};
+use crate::i18n;
 
 pub const WIDTH: f32 = 312.0;
 const HEADER: f32 = 42.0;
 const ROW: f32 = 62.0;
 const PAD: f32 = 12.0;
 const CHART: f32 = 66.0;
+const EXTRA: f32 = 15.0;
 
 pub struct Row {
     pub id: String,
@@ -19,6 +21,8 @@ pub struct Row {
     pub offline: bool,
     pub charging: bool,
     pub line: String,
+    /// Troisième ligne facultative (DPI et fréquence), vide sinon.
+    pub extra: String,
     /// Couleur d'état (barre et pastille), 0xAARRGGBB.
     pub status: u32,
 }
@@ -47,8 +51,13 @@ fn expanded_index(m: &Model) -> Option<usize> {
     m.rows.iter().position(|r| &r.id == id)
 }
 
+fn row_height(row: &Row) -> f32 {
+    ROW + if row.extra.is_empty() { 0.0 } else { EXTRA }
+}
+
 pub fn height(m: &Model) -> f32 {
-    HEADER + m.rows.len().max(1) as f32 * ROW + PAD + if expanded_index(m).is_some() { CHART } else { 0.0 }
+    let rows = if m.rows.is_empty() { ROW } else { m.rows.iter().map(row_height).sum() };
+    HEADER + rows + PAD + if expanded_index(m).is_some() { CHART } else { 0.0 }
 }
 
 fn gear() -> Rect {
@@ -58,8 +67,9 @@ fn gear() -> Rect {
 fn card(m: &Model, i: usize) -> Rect {
     let open = expanded_index(m);
     let shift = if open.is_some_and(|e| i > e) { CHART } else { 0.0 };
-    let extra = if open == Some(i) { CHART } else { 0.0 };
-    rect(PAD, HEADER + i as f32 * ROW + shift, WIDTH - 2.0 * PAD, ROW - 8.0 + extra)
+    let chart = if open == Some(i) { CHART } else { 0.0 };
+    let above: f32 = m.rows[..i].iter().map(row_height).sum();
+    rect(PAD, HEADER + above + shift, WIDTH - 2.0 * PAD, row_height(&m.rows[i]) - 8.0 + chart)
 }
 
 pub fn hit(m: &Model, x: f32, y: f32) -> Option<Hit> {
@@ -81,20 +91,42 @@ fn pictogram(c: &Canvas, kind: Kind, tile: Rect, color: u32) {
             c.fill(rect(cx - 12.0, cy - 1.0, 6.0, 11.0), 2.5, color);
             c.fill(rect(cx + 6.0, cy - 1.0, 6.0, 11.0), 2.5, color);
         }
+        Kind::Keyboard => {
+            c.stroke(rect(cx - 13.0, cy - 7.0, 26.0, 15.0), 3.0, color, 1.5);
+            for k in 0..4 {
+                c.fill(rect(cx - 9.5 + k as f32 * 5.5, cy - 3.0, 2.5, 2.5), 0.5, color);
+            }
+            c.line((cx - 6.0, cy + 4.0), (cx + 6.0, cy + 4.0), color, 1.6);
+        }
+        Kind::Gamepad => {
+            c.stroke(rect(cx - 13.0, cy - 7.0, 26.0, 15.0), 7.0, color, 1.6);
+            c.line((cx - 9.0, cy), (cx - 3.0, cy), color, 1.6);
+            c.line((cx - 6.0, cy - 3.0), (cx - 6.0, cy + 3.0), color, 1.6);
+            c.fill(rect(cx + 4.0, cy - 3.0, 3.0, 3.0), 1.5, color);
+            c.fill(rect(cx + 7.0, cy + 1.0, 3.0, 3.0), 1.5, color);
+        }
+        Kind::Microphone => {
+            c.fill(rect(cx - 4.0, cy - 12.0, 8.0, 15.0), 4.0, color);
+            c.arc(rect(cx - 8.0, cy - 8.0, 16.0, 15.0), 0.0, 180.0, color, 1.6);
+            c.line((cx, cy + 7.0), (cx, cy + 12.0), color, 1.6);
+        }
+        Kind::Other => {
+            c.stroke(rect(cx - 7.0, cy - 11.0, 14.0, 22.0), 3.0, color, 1.6);
+        }
     }
 }
 
 pub fn draw(c: &Canvas, m: &Model, hover: Option<Hit>) {
     let t = theme(m.light);
     c.fill(rect(-2.0, -2.0, WIDTH + 4.0, height(m) + 4.0), 0.0, t.back);
-    c.strong(rect(PAD + 4.0, 10.0, 220.0, 24.0), "Périphériques", 15.0, t.text, Align::Left);
+    c.strong(rect(PAD + 4.0, 10.0, 220.0, 24.0), i18n::t("app.title"), 15.0, t.text, Align::Left);
     if hover == Some(Hit::Gear) {
         c.fill(gear(), 6.0, t.hover);
     }
     c.symbol(gear(), '\u{E713}', 15.0, t.sub);
 
     if m.rows.is_empty() {
-        c.text(rect(PAD + 4.0, HEADER + 8.0, WIDTH - 2.0 * PAD, 24.0), "Aucun appareil détecté.", 11.0, t.sub, Align::Left);
+        c.text(rect(PAD + 4.0, HEADER + 8.0, WIDTH - 2.0 * PAD, 24.0), i18n::t("flyout.empty"), 11.0, t.sub, Align::Left);
         return;
     }
 
@@ -120,7 +152,12 @@ pub fn draw(c: &Canvas, m: &Model, hover: Option<Hit>) {
         let color = if row.offline { t.dim } else if plugged || row.percent < 40 { row.status } else { t.text };
         c.strong(rect(WIDTH - PAD - 90.0, y + 4.0, 82.0, 26.0), &percent, 18.0, color, Align::Right);
 
-        let track = rect(PAD + 56.0, y + 44.0, WIDTH - 2.0 * PAD - 68.0, 4.0);
+        let mut bar = y + 44.0;
+        if !row.extra.is_empty() {
+            c.text(rect(PAD + 53.0, y + 41.0, WIDTH - 2.0 * PAD - 63.0, 15.0), &row.extra, 10.5, t.sub, Align::Left);
+            bar += EXTRA;
+        }
+        let track = rect(PAD + 56.0, bar, WIDTH - 2.0 * PAD - 68.0, 4.0);
         c.fill(track, 2.0, (t.sub & 0x00FF_FFFF) | 0x3800_0000);
         let fill = (track.w * f32::from(row.percent) / 100.0).max(4.0);
         c.fill(rect(track.x, track.y, fill, track.h), 2.0, row.status);
@@ -151,7 +188,7 @@ pub fn range(samples: &[Sample]) -> (u8, u8) {
 
 fn draw_chart(c: &Canvas, chart: &Chart, top: f32, row: &Row, light: bool) {
     let t = theme(light);
-    let area = rect(PAD + 8.0, top + ROW - 2.0, WIDTH - 2.0 * (PAD + 8.0), CHART - 28.0);
+    let area = rect(PAD + 8.0, top + row_height(row) - 2.0, WIDTH - 2.0 * (PAD + 8.0), CHART - 28.0);
     let grid = (t.sub & 0x00FF_FFFF) | 0x4600_0000;
     for k in 0..3 {
         let y = area.y + area.h * k as f32 / 2.0;
@@ -159,7 +196,7 @@ fn draw_chart(c: &Canvas, chart: &Chart, top: f32, row: &Row, light: bool) {
     }
     let samples = &chart.samples;
     if samples.len() < 2 {
-        c.text(area, "Pas encore assez de mesures", 10.5, t.sub, Align::Center);
+        c.text(area, i18n::t("chart.none"), 10.5, t.sub, Align::Center);
         return;
     }
     let (low, high) = range(samples);
@@ -197,7 +234,7 @@ mod tests {
     fn clicks() {
         let row = |id: &str| Row {
             id: id.into(), name: id.into(), kind: Kind::Mouse, percent: 50, estimated: false, offline: false,
-            charging: false, line: String::new(), status: 0,
+            charging: false, line: String::new(), extra: String::new(), status: 0,
         };
         let mut m = Model { rows: vec![row("a"), row("b")], light: false, expanded: None };
         assert_eq!(hit(&m, 280.0, 20.0), Some(Hit::Gear));
@@ -207,5 +244,8 @@ mod tests {
         assert_eq!(height(&m), before + CHART);
         assert_eq!(hit(&m, 50.0, HEADER + ROW + 10.0), Some(Hit::Row(0)));
         assert_eq!(hit(&m, 50.0, HEADER + ROW + CHART + 10.0), Some(Hit::Row(1)));
+        m.rows[0].extra = "800 DPI".into();
+        assert_eq!(height(&m), before + CHART + EXTRA);
+        assert_eq!(hit(&m, 50.0, HEADER + ROW + CHART + 5.0), Some(Hit::Row(0)));
     }
 }

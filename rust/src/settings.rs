@@ -17,6 +17,8 @@ pub struct Pref {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Settings {
+    /// Code de langue ; vide = langue de Windows.
+    pub language: String,
     pub poll_minutes: u32,
     pub scale: u32,
     pub brand_colors: bool,
@@ -32,6 +34,7 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Settings {
+            language: String::new(),
             poll_minutes: 2,
             scale: 100,
             brand_colors: true,
@@ -64,6 +67,9 @@ impl Settings {
 
     /// Ramène toute valeur absurde dans ses bornes.
     pub fn normalize(&mut self) {
+        if !crate::strings::LANGUAGES.iter().any(|l| l.0 == self.language) {
+            self.language.clear();
+        }
         self.poll_minutes = self.poll_minutes.clamp(1, 60);
         self.scale = self.scale.clamp(70, 200);
         self.orange_below = self.orange_below.clamp(2, 100);
@@ -88,6 +94,7 @@ impl Settings {
             self.notify_full as u8,
             self.low_threshold
         );
+        text += &format!("lang\t{}\n", self.language);
         for d in &self.devices {
             let name: String = d.name.chars().filter(|c| !c.is_control()).collect();
             text += &format!("device\t{}\t{}\t{}\t{}\t{}\n", d.id, d.hidden as u8, name, d.low, d.rated);
@@ -110,6 +117,10 @@ impl Settings {
                 continue;
             }
             let Some((key, value)) = line.split_once('\t') else { continue };
+            if key == "lang" {
+                s.language = value.into();
+                continue;
+            }
             let Ok(n) = value.parse::<u32>() else { continue };
             let small = n.min(255) as u8;
             match key {
@@ -148,7 +159,7 @@ mod tests {
 
     #[test]
     fn round_trip() {
-        let mut s = Settings { scale: 125, brand_colors: false, ..Default::default() };
+        let mut s = Settings { scale: 125, brand_colors: false, language: "ar-TN".into(), ..Default::default() };
         s.devices.push(Pref { id: "a".into(), hidden: true, name: "Ma souris".into(), low: 30, rated: 80 });
         assert_eq!(Settings::parse(&s.serialize()), s);
     }

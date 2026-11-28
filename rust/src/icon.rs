@@ -21,12 +21,21 @@ const DIGITS: [[u8; 7]; 10] = [
 const MOUSE: [&str; 7] = ["..###..", ".#.#.#.", ".#.#.#.", ".#####.", ".#...#.", ".#...#.", "..###.."];
 const HEADSET: [&str; 7] = ["..#####..", ".#.....#.", "#.......#", "##.....##", "##.....##", "##.....##", "........."];
 
+const KEYBOARD: [&str; 7] = [".........", "#########", "#.#.#.#.#", "#########", "#..###..#", "#########", "........."];
+const GAMEPAD: [&str; 7] = [".........", ".##...##.", "#########", "#.#####.#", "#########", "##.....##", "........."];
+const MICROPHONE: [&str; 7] = ["..###..", "..###..", "#.###.#", "#.###.#", ".#...#.", "..###..", "...#..."];
+const OTHER: [&str; 7] = [".#####.", ".#...#.", ".#...#.", ".#...#.", ".#...#.", ".#...#.", ".#####."];
+
 /// Grille 16 × 16 : vrai = pixel allumé.
 pub fn grid(kind: Kind, percent: u8) -> [[bool; 16]; 16] {
     let mut g = [[false; 16]; 16];
     let art: &[&str] = match kind {
         Kind::Mouse => &MOUSE,
         Kind::Headset => &HEADSET,
+        Kind::Keyboard => &KEYBOARD,
+        Kind::Gamepad => &GAMEPAD,
+        Kind::Microphone => &MICROPHONE,
+        Kind::Other => &OTHER,
     };
     let left = (16 - art[0].len()) / 2;
     for (y, row) in art.iter().enumerate() {

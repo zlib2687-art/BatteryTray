@@ -1,5 +1,6 @@
 //! Registre, installation, heure locale et diagnostics.
 
+use crate::i18n::{self, t, tf};
 use std::path::PathBuf;
 use std::ptr::{null, null_mut};
 use std::time::Duration;
@@ -94,6 +95,7 @@ pub fn installed_dir() -> Option<PathBuf> {
 }
 
 pub fn install(silent: bool) {
+    i18n::set(&crate::settings::Settings::parse(&crate::settings::read("reglages.tsv")).language);
     let target = install_path();
     let done = std::env::current_exe().is_ok_and(|source| {
         // une version déjà lancée verrouille son fichier : on lui demande de se fermer
@@ -106,11 +108,7 @@ pub fn install(silent: bool) {
         let _ = std::process::Command::new(&target).spawn();
     }
     if !silent {
-        message(if done {
-            "BatteryTray est installé et démarrera avec Windows."
-        } else {
-            "L'installation a échoué. Si BatteryTray tourne déjà, quittez-le puis recommencez."
-        });
+        message(&if done { t("install.done").to_string() } else { tf("install.error", &["BatteryTray.exe"]) });
     }
 }
 
@@ -118,7 +116,8 @@ pub fn uninstall(silent: bool) {
     set_startup(None);
     crate::watchdog::unregister();
     if !silent {
-        message("Démarrage automatique retiré. Quittez l'application puis supprimez son dossier.");
+        i18n::set("");
+        message(t("uninstall.done"));
     }
 }
 
@@ -145,13 +144,21 @@ pub fn list(path: &str) {
     let mut text = String::new();
     for r in reader.read_all() {
         text += &format!(
-            "{}\t{}\t{}{} %\t{}\n",
+            "{}\t{}\t{}{} %\t{}\t{}\n",
             r.id,
             r.name,
             if r.estimated { "~" } else { "" },
             r.percent,
-            if r.charging { "en charge" } else { "sur batterie" }
+            if r.charging { "en charge" } else { "sur batterie" },
+            r.pointer.text()
         );
     }
     let _ = std::fs::write(path, text);
+}
+
+/// Vrai si le clavier ou la souris ont servi il y a moins de `millis`.
+pub fn used_within(millis: u32) -> bool {
+    use windows_sys::Win32::UI::Input::KeyboardAndMouse::{GetLastInputInfo, LASTINPUTINFO};
+    let mut last = LASTINPUTINFO { cbSize: size_of::<LASTINPUTINFO>() as u32, dwTime: 0 };
+    unsafe { GetLastInputInfo(&mut last) != 0 && windows_sys::Win32::System::SystemInformation::GetTickCount().wrapping_sub(last.dwTime) < millis }
 }
