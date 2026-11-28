@@ -5,6 +5,8 @@ use crate::autonomy::Sample;
 use crate::devices::Kind;
 use crate::flyout::{self, Chart, Hit, Model, Row};
 use crate::gfx;
+use crate::i18n::{self, t};
+use crate::strings::LANGUAGES;
 use crate::panel::{self, Action, Draft, Known};
 use crate::settings::{Pref, Settings};
 use crate::system::{self, wide};
@@ -71,6 +73,7 @@ fn build_model(app: &App, expanded: Option<&str>) -> Model {
             offline: !d.online,
             charging: d.reading.charging,
             line: app.second_line(d),
+            extra: if d.online { d.reading.pointer.text() } else { String::new() },
             status: app.status_color(d, light),
         })
         .collect();
@@ -124,7 +127,10 @@ pub fn toggle_flyout() {
         return;
     }
     let Some((model, percent)) = app::with(|a| {
-        a.read_now(); // données fraîches pendant que le panneau est ouvert
+        // données fraîches, sauf si elles datent de moins de 30 s : une lecture complète retarde le suivi du DPI
+        if crate::state::now().saturating_sub(a.last_read) >= 30 {
+            a.read_now();
+        }
         (build_model(a, None), a.settings.scale)
     }) else {
         return;
@@ -173,6 +179,10 @@ pub fn refresh_flyout() {
     }
 }
 
+fn logical(x: f32, width: f32) -> f32 {
+    if i18n::is_rtl() { width - x } else { x }
+}
+
 fn point(lparam: LPARAM, scale: f32) -> (f32, f32) {
     let x = (lparam & 0xFFFF) as u16 as i16;
     let y = ((lparam >> 16) & 0xFFFF) as u16 as i16;
@@ -185,7 +195,10 @@ unsafe extern "system" fn flyout_proc(window: HWND, msg: u32, wparam: WPARAM, lp
             let painted = FLY.with(|f| {
                 let guard = f.try_borrow().ok()?;
                 let f = guard.as_ref()?;
-                gfx::paint(window, f.scale, |c| flyout::draw(c, &f.model, f.hover));
+                gfx::paint(window, f.scale, |c| {
+                    c.mirrored(flyout::WIDTH);
+                    flyout::draw(c, &f.model, f.hover);
+                });
                 Some(())
             });
             if painted.is_none() {
@@ -198,7 +211,7 @@ unsafe extern "system" fn flyout_proc(window: HWND, msg: u32, wparam: WPARAM, lp
                 let mut guard = f.borrow_mut();
                 let Some(f) = guard.as_mut() else { return false };
                 let (x, y) = point(lparam, f.scale);
-                let hover = flyout::hit(&f.model, x, y);
+                let hover = flyout::hit(&f.model, logical(x, flyout::WIDTH), y);
                 let changed = hover != f.hover;
                 f.hover = hover;
                 changed
@@ -213,7 +226,7 @@ unsafe extern "system" fn flyout_proc(window: HWND, msg: u32, wparam: WPARAM, lp
                 let guard = f.borrow();
                 let f = guard.as_ref()?;
                 let (x, y) = point(lparam, f.scale);
-                let hit = flyout::hit(&f.model, x, y)?;
+                let hit = flyout::hit(&f.model, logical(x, flyout::WIDTH), y)?;
                 let id = match hit {
                     Hit::Row(i) => Some(f.model.rows[i].id.clone()),
                     Hit::Gear => None,
@@ -267,13 +280,13 @@ pub fn open_settings() {
         let known = a.state.devices.iter().map(|d| Known { id: d.reading.id.clone(), name: d.reading.name.clone(), kind: d.reading.kind }).collect();
         let mut settings = a.settings.clone();
         settings.remember(a.state.devices.iter().map(|d| d.reading.id.as_str()));
-        Draft { settings, startup: system::startup_enabled(), known, page: 0, selected: 0, editing: false }
+        Draft { settings, startup: system::startup_enabled(), known, page: 0, selected: 0, editing: false, list: None }
     }) else {
         return;
     };
     let (work, scale) = monitor();
     let name = wide(SETTINGS);
-    let title = wide("BatteryTray — Paramètres");
+    let title = wide(t("set.title"));
     let style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
     unsafe {
         let mut area = RECT { left: 0, top: 0, right: (panel::WIDTH * scale) as i32, bottom: (panel::HEIGHT * scale) as i32 };
@@ -326,6 +339,7 @@ unsafe extern "system" fn settings_proc(window: HWND, msg: u32, wparam: WPARAM, 
                 let p = guard.as_ref()?;
                 let light = system::light_theme("AppsUseLightTheme");
                 gfx::paint(window, p.scale, |c| {
+                    c.mirrored(panel::WIDTH);
                     panel::draw(c, &p.draft, light);
                 });
                 Some(())
@@ -340,11 +354,11 @@ unsafe extern "system" fn settings_proc(window: HWND, msg: u32, wparam: WPARAM, 
                 let mut guard = p.borrow_mut();
                 let p = guard.as_mut()?;
                 let (x, y) = point(lparam, p.scale);
-                let action = zones(p, x, y);
+                let action = zones(p, logical(x, panel::WIDTH), y);
                 match action {
                     Some(a) => p.draft.act(a),
                     None => {
-                        p.draft.editing = false;
+                        (p.draft.editing, p.draft.list) = (false, None);
                         None
                     }
                 }
@@ -357,7 +371,21 @@ unsafe extern "system" fn settings_proc(window: HWND, msg: u32, wparam: WPARAM, 
             }
             0
         }
+        WM_MOUSEWHEEL => {
+            // trois lignes par cran
+            let notches = i32::from((wparam >> 16) as u16 as i16) / 120;
+            if PANEL.with(|p| p.borrow_mut().as_mut().is_some_and(|p| p.draft.scroll(-3 * notches))) {
+                InvalidateRect(window, null(), 0);
+            }
+            0
+        }
         WM_CHAR => {
+            // liste ouverte : Échap et Entrée la referment sans fermer la fenêtre
+            let closed = matches!(wparam as u32, 0x1B | 0x0D) && PANEL.with(|p| p.borrow_mut().as_mut().is_some_and(|p| p.draft.list.take().is_some()));
+            if closed {
+                InvalidateRect(window, null(), 0);
+                return 0;
+            }
             match wparam as u32 {
                 0x1B => finish(window, false),
                 0x0D => finish(window, true),
@@ -387,6 +415,23 @@ unsafe extern "system" fn settings_proc(window: HWND, msg: u32, wparam: WPARAM, 
 
 /// Dessine le panneau et les quatre pages avec des données d'exemple, en PNG (vérification visuelle).
 pub fn previews(folder: &str) {
+    for (code, _) in LANGUAGES {
+        i18n::set(code);
+        let draft = Draft { settings: Settings::default(), startup: true, known: Vec::new(), page: 0, selected: 0, editing: false, list: None };
+        gfx::render_png(&format!("{folder}\\langue-{code}.png"), panel::WIDTH, panel::HEIGHT, 1.0, |c| {
+            c.mirrored(panel::WIDTH);
+            panel::draw(c, &draft, false);
+        });
+    }
+    i18n::set(&std::env::var("BATTERYTRAY_LANG").unwrap_or_else(|_| "fr".into()));
+    for light in [false, true] {
+        let draft = Draft { settings: Settings::default(), startup: true, known: Vec::new(), page: 0, selected: 0, editing: false, list: Some(0) };
+        let suffix = if light { "clair" } else { "sombre" };
+        gfx::render_png(&format!("{folder}\\liste-langues-{suffix}.png"), panel::WIDTH, panel::HEIGHT, 1.0, |c| {
+            c.mirrored(panel::WIDTH);
+            panel::draw(c, &draft, light);
+        });
+    }
     let samples: Vec<Sample> = (0..=24).map(|i| Sample { t: 1_795_800_000 + i * 600, p: 80 - (i / 3) as u8 }).collect();
     let names = [("a", "Razer DeathAdder V4 Pro", Kind::Mouse), ("b", "G502 LIGHTSPEED", Kind::Mouse), ("c", "Logitech PRO X 2", Kind::Headset)];
     for light in [false, true] {
@@ -398,17 +443,22 @@ pub fn previews(folder: &str) {
             .zip(values)
             .map(|(&(id, name, kind), (percent, estimated, offline, charging, line, status))| Row {
                 id: id.into(), name: name.into(), kind, percent, estimated, offline, charging, line: line.into(), status,
+                extra: if kind == Kind::Mouse && !offline { "1600 DPI · 1000 Hz".into() } else { String::new() },
             })
             .collect();
         let model = Model { rows, light, expanded: Some(("a".into(), chart(samples.clone()))) };
-        gfx::render_png(&format!("{folder}\\flyout-{suffix}.png"), flyout::WIDTH, flyout::height(&model), 2.0, |c| flyout::draw(c, &model, None));
+        gfx::render_png(&format!("{folder}\\flyout-{suffix}.png"), flyout::WIDTH, flyout::height(&model), 2.0, |c| {
+            c.mirrored(flyout::WIDTH);
+            flyout::draw(c, &model, None);
+        });
 
         let mut settings = Settings::default();
         settings.devices = names.iter().map(|n| Pref { id: n.0.into(), ..Default::default() }).collect();
         for page in 0..4 {
             let known = names.iter().map(|n| Known { id: n.0.into(), name: n.1.into(), kind: n.2 }).collect();
-            let draft = Draft { settings: settings.clone(), startup: true, known, page, selected: 0, editing: false };
+            let draft = Draft { settings: settings.clone(), startup: true, known, page, selected: 0, editing: false, list: None };
             gfx::render_png(&format!("{folder}\\parametres-{page}-{suffix}.png"), panel::WIDTH, panel::HEIGHT, 1.0, |c| {
+                c.mirrored(panel::WIDTH);
                 panel::draw(c, &draft, light);
             });
         }

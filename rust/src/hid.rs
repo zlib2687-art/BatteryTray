@@ -8,12 +8,16 @@ use windows_sys::Win32::Storage::FileSystem::*;
 use windows_sys::Win32::System::Threading::{CreateEventW, WaitForSingleObject};
 use windows_sys::Win32::System::IO::{CancelIo, GetOverlappedResult, OVERLAPPED};
 
+#[derive(Clone)]
 pub struct Info {
     path: Vec<u16>,
     pub path_text: String,
     pub vid: u16,
     pub pid: u16,
     pub usage_page: u16,
+    pub usage: u16,
+    /// Numéro d'interface USB (« mi_xx » du chemin), -1 si inconnu.
+    pub iface: i32,
     pub input_len: usize,
     pub output_len: usize,
     pub feature_len: usize,
@@ -37,6 +41,15 @@ fn create(path: &[u16], access: u32, flags: u32) -> Option<Handle> {
 
 /// Périphériques HID présents appartenant à l'un des fabricants demandés.
 pub fn enumerate(vendors: &[u16]) -> Vec<Info> {
+    enumerate_filtered(|vendor| vendors.contains(&vendor))
+}
+
+/// Toutes les collections HID présentes.
+pub fn enumerate_all() -> Vec<Info> {
+    enumerate_filtered(|_| true)
+}
+
+fn enumerate_filtered(wanted: impl Fn(u16) -> bool) -> Vec<Info> {
     let mut found = Vec::new();
     unsafe {
         let mut guid = std::mem::zeroed();
@@ -67,7 +80,7 @@ pub fn enumerate(vendors: &[u16]) -> Vec<Info> {
                 len += 1;
             }
             let path: Vec<u16> = std::slice::from_raw_parts(start, len + 1).to_vec();
-            if let Some(info) = describe(path, vendors) {
+            if let Some(info) = describe(path, &wanted) {
                 found.push(info);
             }
         }
@@ -76,12 +89,77 @@ pub fn enumerate(vendors: &[u16]) -> Vec<Info> {
     found
 }
 
-unsafe fn describe(path: Vec<u16>, vendors: &[u16]) -> Option<Info> {
+/// Batterie déclarée par un périphérique HID selon la norme.
+pub struct Battery {
+    pub path: String,
+    pub product: String,
+    pub value: u32,
+    pub minimum: i32,
+    pub maximum: i32,
+}
+
+/// Périphériques HID (hors Razer et Logitech, lus par leurs modules) qui exposent « Battery Strength »
+/// (page 0x06, usage 0x20) ou un état de charge (page « Battery System » 0x85, usages 0x64 et 0x65).
+pub fn batteries() -> Vec<Battery> {
+    const SKIPPED: [u16; 2] = [0x1532, 0x046D];
+    enumerate_filtered(|vendor| !SKIPPED.contains(&vendor)).iter().filter_map(|info| unsafe { battery_of(info) }).collect()
+}
+
+unsafe fn battery_of(info: &Info) -> Option<Battery> {
+    let h = create(&info.path, 0, 0)?;
+    let mut pre: PHIDP_PREPARSED_DATA = std::mem::zeroed();
+    if HidD_GetPreparsedData(h.0, &mut pre) == 0 {
+        return None;
+    }
+    let found = (|| {
+        for (report_type, length) in [(HidP_Feature, info.feature_len), (HidP_Input, info.input_len)] {
+            if length == 0 {
+                continue;
+            }
+            let mut caps: [HIDP_VALUE_CAPS; 64] = std::mem::zeroed();
+            let mut count = caps.len() as u16;
+            if HidP_GetValueCaps(report_type, caps.as_mut_ptr(), &mut count, pre) != HIDP_STATUS_SUCCESS {
+                continue;
+            }
+            for cap in caps.iter().take(count as usize) {
+                let usage = if cap.IsRange != 0 { cap.Anonymous.Range.UsageMin } else { cap.Anonymous.NotRange.Usage };
+                if !matches!((cap.UsagePage, usage), (0x06, 0x20) | (0x85, 0x64) | (0x85, 0x65)) {
+                    continue;
+                }
+                let mut report = vec![0u8; length];
+                report[0] = cap.ReportID;
+                let read = if report_type == HidP_Feature {
+                    HidD_GetFeature(h.0, report.as_mut_ptr() as _, length as u32)
+                } else {
+                    HidD_GetInputReport(h.0, report.as_mut_ptr() as _, length as u32)
+                };
+                let mut value = 0u32;
+                if read != 0
+                    && HidP_GetUsageValue(report_type, cap.UsagePage, 0, usage, &mut value, pre, report.as_ptr() as _, length as u32)
+                        == HIDP_STATUS_SUCCESS
+                {
+                    return Some(Battery {
+                        path: info.path_text.clone(),
+                        product: info.product.clone(),
+                        value,
+                        minimum: cap.LogicalMin,
+                        maximum: cap.LogicalMax,
+                    });
+                }
+            }
+        }
+        None
+    })();
+    HidD_FreePreparsedData(pre);
+    found
+}
+
+unsafe fn describe(path: Vec<u16>, wanted: &dyn Fn(u16) -> bool) -> Option<Info> {
     // accès nul : suffit pour interroger, même les souris que Windows interdit en lecture
     let h = create(&path, 0, 0)?;
     let mut attr: HIDD_ATTRIBUTES = std::mem::zeroed();
     attr.Size = size_of::<HIDD_ATTRIBUTES>() as u32;
-    if HidD_GetAttributes(h.0, &mut attr) == 0 || !vendors.contains(&attr.VendorID) {
+    if HidD_GetAttributes(h.0, &mut attr) == 0 || !wanted(attr.VendorID) {
         return None;
     }
     let mut pre: PHIDP_PREPARSED_DATA = std::mem::zeroed();
@@ -102,12 +180,62 @@ unsafe fn describe(path: Vec<u16>, vendors: &[u16]) -> Option<Info> {
         vid: attr.VendorID,
         pid: attr.ProductID,
         usage_page: caps.UsagePage,
+        usage: caps.Usage,
+        iface: interface_of(&String::from_utf16_lossy(&path[..path.len() - 1])),
         input_len: caps.InputReportByteLength as usize,
         output_len: caps.OutputReportByteLength as usize,
         feature_len: caps.FeatureReportByteLength as usize,
         product: String::from_utf16_lossy(&name[..end]),
         path,
     })
+}
+
+pub fn interface_of(path: &str) -> i32 {
+    let lower = path.to_lowercase();
+    lower
+        .find("mi_")
+        .and_then(|at| lower.get(at + 3..at + 5))
+        .and_then(|hex| i32::from_str_radix(hex, 16).ok())
+        .unwrap_or(-1)
+}
+
+/// Envoie un rapport de fonctionnalité (complété à la longueur annoncée).
+pub fn feature_write(info: &Info, data: &[u8]) -> bool {
+    let Some(h) = create(&info.path, 0, 0) else { return false };
+    let mut buffer = vec![0u8; info.feature_len.max(data.len())];
+    buffer[..data.len()].copy_from_slice(data);
+    unsafe { HidD_SetFeature(h.0, buffer.as_ptr() as _, buffer.len() as u32) != 0 }
+}
+
+/// Lit un rapport de fonctionnalité ; l'octet 0 reste l'identifiant du rapport.
+pub fn feature_read(info: &Info, report: u8, len: usize) -> Option<Vec<u8>> {
+    if len == 0 || len > 4096 {
+        return None;
+    }
+    let h = create(&info.path, 0, 0)?;
+    let mut buffer = vec![0u8; len];
+    buffer[0] = report;
+    unsafe { (HidD_GetFeature(h.0, buffer.as_mut_ptr() as _, len as u32) != 0).then_some(buffer) }
+}
+
+/// Lit un rapport d'entrée par le canal de contrôle ; l'octet 0 reste l'identifiant du rapport.
+pub fn input_report(info: &Info, report: u8, len: usize) -> Option<Vec<u8>> {
+    if len == 0 || len > 4096 {
+        return None;
+    }
+    let h = create(&info.path, 0, 0)?;
+    let mut buffer = vec![0u8; len];
+    buffer[0] = report;
+    unsafe { (HidD_GetInputReport(h.0, buffer.as_mut_ptr() as _, len as u32) != 0).then_some(buffer) }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn interface_number() {
+        assert_eq!(super::interface_of(r"\\?\hid#vid_1038&pid_12e0&mi_04&col01#x"), 4);
+        assert_eq!(super::interface_of(r"\\?\hid#vid_054c&pid_0ce6#x"), -1);
+    }
 }
 
 /// Canal ouvert en lecture/écriture avec délais (un récepteur muet ne bloque jamais).

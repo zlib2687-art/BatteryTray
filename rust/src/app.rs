@@ -2,6 +2,8 @@
 
 use crate::autonomy::{self, Estimate, Estimator};
 use crate::devices::{Reader, Reading};
+use crate::i18n::{self, t, tf};
+use crate::pointer::Pointer;
 use crate::settings::{self, Settings};
 use crate::state::{self, Alert, Device, State};
 use crate::system::{self, wide, APP};
@@ -11,7 +13,7 @@ use std::ptr::{null, null_mut};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError, Sender};
 use std::sync::Mutex;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use windows_sys::Win32::Foundation::*;
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::System::Threading::CreateMutexW;
@@ -21,6 +23,9 @@ use windows_sys::Win32::UI::WindowsAndMessaging::*;
 
 const WM_TRAY: u32 = WM_APP + 1;
 const WM_READINGS: u32 = WM_APP + 2;
+const WM_POINTER: u32 = WM_APP + 3;
+/// Délai entre deux relectures du DPI, tant que le PC sert.
+const POINTER_TICK: Duration = Duration::from_millis(300);
 const MENU_REFRESH: usize = 1;
 const MENU_STARTUP: usize = 2;
 const MENU_QUIT: usize = 3;
@@ -29,6 +34,8 @@ const PLACEHOLDER: usize = 999;
 
 /// Lecture transmise par le fil d'arrière-plan au fil d'interface.
 static PENDING: Mutex<Option<Vec<Reading>>> = Mutex::new(None);
+/// DPI et fréquences qui viennent de changer.
+static POINTERS: Mutex<Vec<(String, Pointer)>> = Mutex::new(Vec::new());
 /// Intervalle entre deux lectures, en secondes.
 static INTERVAL: AtomicU64 = AtomicU64::new(120);
 
@@ -42,6 +49,8 @@ pub struct App {
     wake: Sender<()>,
     taskbar_created: u32,
     saved_estimates: u64,
+    /// Heure de la dernière lecture complète.
+    pub last_read: u64,
     /// Le relâchement qui suit un double-clic est ignoré.
     ignore_up: bool,
 }
@@ -118,17 +127,17 @@ impl App {
     pub fn second_line(&self, d: &Device) -> String {
         let time = system::clock(d.seen);
         if !d.online {
-            return format!("hors ligne · {time}");
+            return format!("{} · {time}", t("state.offline"));
         }
         if d.reading.charging {
             return match d.estimate {
-                Estimate::Full(_) => format!("en charge · {}", autonomy::describe(d.estimate).unwrap_or_default()),
-                _ => format!("en charge · {time}"),
+                Estimate::Full(_) => format!("{} · {}", t("state.charging"), autonomy::describe(d.estimate).unwrap_or_default()),
+                _ => format!("{} · {time}", t("state.charging")),
             };
         }
         match autonomy::describe(d.estimate) {
             Some(text) => format!("{text} · {time}"),
-            None => format!("lu à {time}"),
+            None => tf("time.read", &[&time]),
         }
     }
 
@@ -154,7 +163,11 @@ impl App {
                     0xFFFFFF
                 };
                 let mark = if r.estimated { "~" } else { "" };
-                let tip = format!("{}\n{mark}{} %\n{}", self.name_of(d), r.percent, self.second_line(d));
+                let mut tip = format!("{}\n{mark}{} %\n{}", self.name_of(d), r.percent, self.second_line(d));
+                let pointer = r.pointer.text();
+                if d.online && !pointer.is_empty() {
+                    tip = format!("{tip}\n{pointer}");
+                }
                 (r.id.clone(), r.kind, r.percent, color, tip)
             })
             .collect();
@@ -177,7 +190,7 @@ impl App {
         }
         // sans aucun appareil, une icône reste nécessaire pour atteindre les paramètres et quitter
         if shown.is_empty() {
-            set_icon(window, PLACEHOLDER, devices_kind::Kind::Mouse, 0, 0x8A8A8A, "BatteryTray : aucun appareil");
+            set_icon(window, PLACEHOLDER, devices_kind::Kind::Mouse, 0, 0x8A8A8A, t("flyout.empty"));
         } else {
             unsafe { Shell_NotifyIconW(NIM_DELETE, &base_data(window, PLACEHOLDER)) };
         }
@@ -185,8 +198,8 @@ impl App {
 
     fn notify(&self, alert: &Alert) {
         let (id, title, body, warning) = match alert {
-            Alert::Low(id, name, p) => (id, "Batterie faible", format!("{name} : {p} %"), true),
-            Alert::Full(id, name) => (id, "Charge terminée", format!("{name} est chargé."), false),
+            Alert::Low(id, name, p) => (id, t("notif.low.title"), tf("notif.low.body", &[name, &p.to_string()]), true),
+            Alert::Full(id, name) => (id, t("notif.full.title"), tf("notif.full.body", &[name, "100"]), false),
         };
         let Some(index) = self.icons.iter().position(|i| i == id) else { return };
         let mut data = base_data(self.window, index);
@@ -200,6 +213,7 @@ impl App {
     fn receive(&mut self) {
         let Some(readings) = PENDING.lock().ok().and_then(|mut p| p.take()) else { return };
         let now = state::now();
+        self.last_read = now;
         let ids: Vec<String> = readings.iter().map(|r| r.id.clone()).collect();
         let alerts = self.state.apply(readings, now, &self.settings);
         if self.settings.remember(ids.iter().map(String::as_str)) {
@@ -224,6 +238,16 @@ impl App {
         }
     }
 
+    fn receive_pointers(&mut self) {
+        let Some(changed) = POINTERS.lock().ok().map(|mut p| std::mem::take(&mut *p)) else { return };
+        for (id, pointer) in changed {
+            if let Some(d) = self.state.devices.iter_mut().find(|d| d.reading.id == id) {
+                d.reading.pointer = pointer;
+            }
+        }
+        self.refresh_icons();
+    }
+
     pub fn read_now(&self) {
         let _ = self.wake.send(());
     }
@@ -232,6 +256,7 @@ impl App {
     pub fn apply_settings(&mut self, new: Settings, startup: bool) {
         self.settings = new;
         self.settings.normalize();
+        i18n::set(&self.settings.language);
         settings::write_atomic("reglages.tsv", &self.settings.serialize());
         if startup != system::startup_enabled() {
             let exe = std::env::current_exe().ok();
@@ -292,6 +317,7 @@ pub fn run() {
 
         let settings = Settings::parse(&settings::read("reglages.tsv"));
         INTERVAL.store(u64::from(settings.poll_minutes) * 60, Ordering::Relaxed);
+        i18n::set(&settings.language);
         let (wake, woken) = mpsc::channel::<()>();
         let target = window as isize;
         std::thread::spawn(move || read_loop(target, woken));
@@ -307,6 +333,7 @@ pub fn run() {
                 wake,
                 taskbar_created: RegisterWindowMessageW(taskbar.as_ptr()),
                 saved_estimates: 0,
+                last_read: 0,
                 ignore_up: false,
             })
         });
@@ -338,11 +365,27 @@ fn read_loop(window: isize, woken: mpsc::Receiver<()>) {
         unsafe { PostMessageW(window as HWND, WM_READINGS, 0, 0) };
         system::trim();
         let wait = if asleep { 20 } else { INTERVAL.load(Ordering::Relaxed) };
-        match woken.recv_timeout(Duration::from_secs(wait)) {
-            Err(RecvTimeoutError::Disconnected) => break,
-            Err(RecvTimeoutError::Timeout) => {}
-            // les évènements arrivent en rafales : on attend le calme
-            Ok(()) => while woken.recv_timeout(Duration::from_secs(2)).is_ok() {},
+        // en attendant la prochaine lecture complète, on suit le DPI des souris
+        let mut next = Instant::now() + Duration::from_secs(wait);
+        let mut tick = 0u32;
+        while Instant::now() < next {
+            match woken.recv_timeout(POINTER_TICK) {
+                Err(RecvTimeoutError::Disconnected) => return,
+                // les évènements arrivent en rafales : on attend le calme
+                Ok(()) => next = Instant::now() + Duration::from_secs(2),
+                // PC inutilisé : aucune requête, les souris dorment
+                Err(RecvTimeoutError::Timeout) if system::used_within(15_000) => {
+                    tick = tick.wrapping_add(1);
+                    let changed = reader.poll_pointers(tick % 4 == 0);
+                    if !changed.is_empty() {
+                        if let Ok(mut slot) = POINTERS.lock() {
+                            slot.extend(changed);
+                        }
+                        unsafe { PostMessageW(window as HWND, WM_POINTER, 0, 0) };
+                    }
+                }
+                Err(RecvTimeoutError::Timeout) => {}
+            }
         }
     }
 }
@@ -356,7 +399,7 @@ unsafe fn quit(window: HWND) {
 /// Menu du clic droit. L'état n'est pas emprunté pendant qu'il est ouvert.
 unsafe fn show_menu(window: HWND) {
     let menu = CreatePopupMenu();
-    let labels = [(MENU_REFRESH, "Actualiser"), (MENU_SETTINGS, "Paramètres…"), (MENU_STARTUP, "Démarrer avec Windows"), (MENU_QUIT, "Quitter")];
+    let labels = [(MENU_REFRESH, t("menu.refresh")), (MENU_SETTINGS, t("menu.settings")), (MENU_STARTUP, t("set.startup")), (MENU_QUIT, t("menu.exit"))];
     for (id, label) in labels {
         let checked = if id == MENU_STARTUP && system::startup_enabled() { MF_CHECKED } else { MF_UNCHECKED };
         let label = wide(label);
@@ -365,7 +408,8 @@ unsafe fn show_menu(window: HWND) {
     let mut at = POINT { x: 0, y: 0 };
     GetCursorPos(&mut at);
     SetForegroundWindow(window);
-    let choice = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, at.x, at.y, 0, window, null());
+    let direction = if i18n::is_rtl() { TPM_LAYOUTRTL } else { 0 };
+    let choice = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON | direction, at.x, at.y, 0, window, null());
     DestroyMenu(menu);
     match choice as usize {
         MENU_REFRESH => {
@@ -409,6 +453,11 @@ unsafe extern "system" fn window_proc(window: HWND, msg: u32, wparam: WPARAM, lp
             with(App::receive);
             windows::refresh_flyout();
             system::trim();
+            0
+        }
+        WM_POINTER => {
+            with(App::receive_pointers);
+            windows::refresh_flyout();
             0
         }
         // périphérique branché ou débranché, sortie de veille

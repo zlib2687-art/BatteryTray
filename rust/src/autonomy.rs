@@ -1,6 +1,7 @@
 //! Autonomie et temps de charge estimés. Portage de AutonomyEstimator, LevelTrend et AutonomyRatchet (C#).
 
 use crate::devices::Reading;
+use crate::i18n::{t, tf};
 
 const MAX_GAP_MINUTES: f64 = 12.0;
 const PRIOR_WEIGHT: f64 = 6.0;
@@ -313,24 +314,25 @@ pub fn duration(hours: f64) -> String {
     let hours = if hours.is_nan() { 0.0 } else { hours.clamp(0.0, 24.0 * 999.0) };
     let total = ((hours * 60.0).round() as u64).max(1);
     let (d, h, m) = (total / 1440, total % 1440 / 60, total % 60);
+    let unit = |value: u64, key| format!("{value} {}", t(key));
     match (d, h, m) {
-        (0, 0, m) => format!("{m} min"),
-        (0, h, 0) => format!("{h} h"),
-        (0, h, m) => format!("{h} h {m} min"),
-        (d, 0, _) => format!("{d} j"),
-        (d, h, _) => format!("{d} j {h} h"),
+        (0, 0, m) => unit(m, "unit.min"),
+        (0, h, 0) => unit(h, "unit.h"),
+        (0, h, m) => format!("{} {}", unit(h, "unit.h"), unit(m, "unit.min")),
+        (d, 0, _) => unit(d, "unit.d"),
+        (d, h, _) => format!("{} {}", unit(d, "unit.d"), unit(h, "unit.h")),
     }
 }
 
 pub fn describe(estimate: Estimate) -> Option<String> {
     Some(match estimate {
         Estimate::None => return None,
-        Estimate::Pending => "calcul en cours…".into(),
-        Estimate::Left(h) if h > 720.0 => "reste plus de 30 j".into(),
-        Estimate::Left(h) => format!("reste ≈ {}", duration(h)),
-        Estimate::AtLeast(h) => format!("reste plus de {}", duration(h)),
-        Estimate::Rated(h) => format!("≈ {} (annoncée)", duration(h)),
-        Estimate::Full(h) => format!("plein dans ≈ {}", duration(h)),
+        Estimate::Pending => t("autonomy.calculating").into(),
+        Estimate::Left(h) if h > 720.0 => tf("autonomy.atLeast", &[&duration(720.0)]),
+        Estimate::Left(h) => tf("autonomy.fmt", &[&duration(h)]),
+        Estimate::AtLeast(h) => tf("autonomy.atLeast", &[&duration(h)]),
+        Estimate::Rated(h) => format!("{} {}", tf("autonomy.fmt", &[&duration(h)]), t("autonomy.rated")),
+        Estimate::Full(h) => tf("charge.eta", &[&duration(h)]),
     })
 }
 
@@ -340,7 +342,7 @@ mod tests {
     use crate::devices::Kind;
 
     fn reading(percent: u8, charging: bool) -> Reading {
-        Reading { id: "a".into(), name: "A".into(), kind: Kind::Mouse, percent, charging, estimated: false }
+        Reading { id: "a".into(), name: "A".into(), kind: Kind::Mouse, percent, charging, estimated: false, pointer: Default::default() }
     }
 
     #[test]

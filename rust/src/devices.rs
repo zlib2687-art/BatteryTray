@@ -1,6 +1,7 @@
 //! Lecture des trois appareils. Portage des modules C# de BatteryTray ; seules des requêtes de lecture sont envoyées.
 
 use crate::hid::{self, Info, Stream};
+use crate::pointer::{self, Pointer};
 use std::time::{Duration, Instant};
 
 const RAZER: u16 = 0x1532;
@@ -12,6 +13,10 @@ const SW_ID: u8 = 0x0A;
 pub enum Kind {
     Mouse,
     Headset,
+    Keyboard,
+    Gamepad,
+    Microphone,
+    Other,
 }
 
 #[derive(Clone, Debug)]
@@ -23,30 +28,89 @@ pub struct Reading {
     pub charging: bool,
     /// Pourcentage estimé d'après la tension (affiché avec « ~ »).
     pub estimated: bool,
+    /// Réglages en cours (souris Logitech et Razer seulement).
+    pub pointer: Pointer,
+}
+
+/// Comment relire les réglages d'une souris sans tout redécouvrir.
+enum Source {
+    Razer { info: Info, transaction: u8, extended_rate: bool },
+    /// Numéros de fonction HID++ et variante (vrai : la plus récente).
+    Hidpp { info: Info, device: u8, dpi: Option<(u8, bool)>, rate: Option<(u8, bool)> },
+}
+
+struct Live {
+    id: String,
+    source: Source,
+    pointer: Pointer,
 }
 
 #[derive(Default)]
 pub struct Reader {
     /// Dernières tensions de chaque souris à tension seule (médiane sur 5).
     voltages: Vec<(String, Vec<u16>)>,
+    /// Récepteurs Logitech que ce module lit déjà : les pilotes complémentaires les ignorent.
+    logitech_pids: Vec<u16>,
+    /// Souris dont le DPI et la fréquence sont relus en continu.
+    mice: Vec<Live>,
+    /// Sources standard de Windows, relues au plus une fois par minute.
+    generic: Option<(Instant, Vec<Reading>)>,
 }
 
 impl Reader {
     pub fn read_all(&mut self) -> Vec<Reading> {
         let all = hid::enumerate(&[RAZER, LOGITECH]);
+        self.mice.clear();
         let mut out = Vec::new();
         out.extend(pro_x2(&all));
         for info in all.iter().filter(|d| d.vid == LOGITECH && d.pid != PRO_X2 && d.usage_page >= 0xFF00 && d.output_len == 20) {
             self.logitech(info, &mut out);
         }
         for info in all.iter().filter(|d| d.vid == RAZER && d.feature_len >= 90) {
-            if let Some(r) = razer(info) {
+            if let Some((r, source)) = razer(info) {
                 if !out.iter().any(|o| o.id == r.id) {
+                    self.mice.push(Live { id: r.id.clone(), source, pointer: r.pointer });
                     out.push(r);
                 }
             }
         }
+        // pilotes de marques (SteelSeries, Corsair, HyperX, PlayStation, casques Razer)
+        crate::generic::merge(&mut out, crate::brands::read_all(&self.logitech_pids));
+        // toutes marques ensuite : un appareil déjà lu par un module propre à sa marque n'est pas répété
+        if self.generic.as_ref().is_none_or(|g| g.0.elapsed() >= Duration::from_secs(60)) {
+            let mut found = crate::generic::bluetooth_le();
+            crate::generic::merge(&mut found, crate::generic::hid_standard());
+            crate::generic::merge(&mut found, crate::generic::windows_property());
+            self.generic = Some((Instant::now(), found));
+        }
+        if let Some((_, found)) = &self.generic {
+            crate::generic::merge(&mut out, found.clone());
+        }
         out
+    }
+
+    /// Relit les réglages des souris connues ; ne rend que ceux qui ont changé. `with_rate` : la fréquence aussi.
+    pub fn poll_pointers(&mut self, with_rate: bool) -> Vec<(String, Pointer)> {
+        let mut changed = Vec::new();
+        for mouse in &mut self.mice {
+            let read = match &mouse.source {
+                Source::Razer { info, transaction, extended_rate } => {
+                    let len = info.feature_len.clamp(91, 4096);
+                    pointer::razer_live(len, *transaction, with_rate.then_some(*extended_rate), |r| hid::feature_exchange(info, r))
+                }
+                Source::Hidpp { info, device, dpi, rate } => match Stream::open(info) {
+                    Some(s) => logitech_read(&s, *device, *dpi, rate.filter(|_| with_rate)),
+                    None => continue,
+                },
+            };
+            // une souris endormie ne répond pas : on garde la dernière valeur
+            let merged = Pointer { dpi: read.dpi.or(mouse.pointer.dpi), rate: read.rate.or(mouse.pointer.rate) };
+            if merged != mouse.pointer {
+                mouse.pointer = merged;
+                changed.push((mouse.id.clone(), merged));
+            }
+        }
+        changed
     }
 
     fn smooth(&mut self, id: &str, mv: u16) -> u16 {
@@ -75,8 +139,24 @@ impl Reader {
             let name = read_name(&s, index).unwrap_or_else(|| format!("Logitech {:04X}", info.pid));
             let name = short_name(&name);
             let id = format!("logi-{:04X}-{index}", info.pid);
+            if !self.logitech_pids.contains(&info.pid) {
+                self.logitech_pids.push(info.pid);
+            }
             let lower = name.to_lowercase();
-            let kind = if lower.contains("headset") { Kind::Headset } else { Kind::Mouse };
+            let kind = if lower.contains("headset") {
+                Kind::Headset
+            } else if lower.contains("keyboard") {
+                Kind::Keyboard
+            } else {
+                Kind::Mouse
+            };
+            let mut pointer = Pointer::default();
+            if kind == Kind::Mouse {
+                let (dpi, rate) = (logitech_dpi_function(&s, index), logitech_rate_function(&s, index));
+                pointer = logitech_read(&s, index, dpi, rate);
+                self.mice.retain(|m| m.id != id);
+                self.mice.push(Live { id: id.clone(), source: Source::Hidpp { info: info.clone(), device: index, dpi, rate }, pointer });
+            }
             let reading = |percent: u8, charging: bool, estimated: bool| Reading {
                 id: id.clone(),
                 name: name.clone(),
@@ -84,6 +164,7 @@ impl Reader {
                 percent: percent.min(100),
                 charging,
                 estimated,
+                pointer,
             };
 
             // pourcentage fourni par l'appareil (0x1004 puis 0x1000)
@@ -130,6 +211,30 @@ fn request(s: &Stream, device: u8, feature: u8, function: u8, params: &[u8]) -> 
         }
     }
     None
+}
+
+/// Fonction de sensibilité d'une souris HID++ 2.0 : 0x2201, sinon 0x2202.
+fn logitech_dpi_function(s: &Stream, device: u8) -> Option<(u8, bool)> {
+    feature_index(s, device, 0x2201).map(|f| (f, false)).or_else(|| feature_index(s, device, 0x2202).map(|f| (f, true)))
+}
+
+/// Fonction de fréquence : 0x8061, sinon 0x8060.
+fn logitech_rate_function(s: &Stream, device: u8) -> Option<(u8, bool)> {
+    feature_index(s, device, 0x8061).map(|f| (f, true)).or_else(|| feature_index(s, device, 0x8060).map(|f| (f, false)))
+}
+
+fn logitech_read(s: &Stream, device: u8, dpi: Option<(u8, bool)>, rate: Option<(u8, bool)>) -> Pointer {
+    let ask = |f: u8, function: u8| request(s, device, f, function, &[0]).filter(|a| a[2] == f);
+    Pointer {
+        dpi: dpi.and_then(|(f, extended)| {
+            let a = ask(f, if extended { 5 } else { 2 })?;
+            if extended { pointer::hidpp_dpi_extended(&a) } else { pointer::hidpp_dpi(&a) }
+        }),
+        rate: rate.and_then(|(f, extended)| {
+            let a = ask(f, if extended { 2 } else { 1 })?;
+            if extended { pointer::hidpp_rate_extended(&a) } else { pointer::hidpp_rate(&a) }
+        }),
+    }
 }
 
 fn feature_index(s: &Stream, device: u8, feature: u16) -> Option<u8> {
@@ -191,6 +296,7 @@ fn pro_x2(all: &[Info]) -> Option<Reading> {
                 percent,
                 charging,
                 estimated: false,
+                pointer: Pointer::default(),
             });
         }
     }
@@ -204,16 +310,22 @@ pub fn parse_pro_x2(r: &[u8]) -> Option<(u8, bool)> {
 
 /// Requête Razer de 90 octets (plus l'identifiant de rapport) : classe 0x07, somme de contrôle XOR.
 pub fn razer_request(len: usize, transaction: u8, command: u8) -> Vec<u8> {
+    razer_command(len, transaction, 0x07, command, 2, &[])
+}
+
+/// Requête Razer quelconque : classe, commande, taille des données et premiers arguments.
+pub fn razer_command(len: usize, transaction: u8, class: u8, command: u8, size: u8, arguments: &[u8]) -> Vec<u8> {
     let mut buf = vec![0u8; len];
     buf[2] = transaction;
-    buf[6] = 2;
-    buf[7] = 0x07;
+    buf[6] = size;
+    buf[7] = class;
     buf[8] = command;
+    buf[9..9 + arguments.len()].copy_from_slice(arguments);
     buf[89] = buf[3..89].iter().fold(0, |c, &b| c ^ b);
     buf
 }
 
-fn razer(info: &Info) -> Option<Reading> {
+fn razer(info: &Info) -> Option<(Reading, Source)> {
     let len = info.feature_len.clamp(91, 4096);
     for transaction in [0x1Fu8, 0xFF, 0x3F, 0x9F] {
         let Some(level) = hid::feature_exchange(info, &razer_request(len, transaction, 0x80)) else { continue };
@@ -224,14 +336,17 @@ fn razer(info: &Info) -> Option<Reading> {
             .is_some_and(|c| c[1] == 0x02 && c[10] == 1);
         let product = if info.product.is_empty() { format!("Razer {:04X}", info.pid) } else { info.product.clone() };
         let name = if product.to_lowercase().starts_with("razer") { product } else { format!("Razer {product}") };
-        return Some(Reading {
+        let (pointer, extended_rate) = pointer::razer(len, transaction, |request| hid::feature_exchange(info, request));
+        let reading = Reading {
             id: format!("razer-{:04X}", info.pid),
             name,
             kind: Kind::Mouse,
             percent: ((level[10] as u32 * 100 + 127) / 255) as u8,
             charging,
             estimated: false,
-        });
+            pointer,
+        };
+        return Some((reading, Source::Razer { info: info.clone(), transaction, extended_rate }));
     }
     None
 }

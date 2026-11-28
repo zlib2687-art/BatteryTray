@@ -89,6 +89,8 @@ pub fn release() {
 
 pub struct Canvas {
     g: *mut GpGraphics,
+    /// Largeur à refléter pour les langues écrites de droite à gauche.
+    mirror: Option<f32>,
 }
 
 fn wide(text: &str) -> Vec<u16> {
@@ -100,7 +102,20 @@ impl Canvas {
         GdipSetSmoothingMode(g, SmoothingModeAntiAlias);
         GdipSetTextRenderingHint(g, TextRenderingHintClearTypeGridFit);
         GdipScaleWorldTransform(g, scale, scale, MatrixOrderPrepend);
-        Canvas { g }
+        Canvas { g, mirror: None }
+    }
+
+    /// Les mises en page sont écrites de gauche à droite : ceci les retourne dans une fenêtre de cette largeur.
+    pub fn mirrored(&mut self, width: f32) {
+        self.mirror = crate::i18n::is_rtl().then_some(width);
+    }
+
+    fn flip(&self, r: Rect) -> Rect {
+        self.mirror.map_or(r, |width| rect(width - r.x - r.w, r.y, r.w, r.h))
+    }
+
+    fn flip_x(&self, x: f32) -> f32 {
+        self.mirror.map_or(x, |width| width - x)
     }
 
     unsafe fn path(&self, r: Rect, radius: f32) -> *mut GpPath {
@@ -116,6 +131,7 @@ impl Canvas {
     }
 
     pub fn fill(&self, r: Rect, radius: f32, color: u32) {
+        let r = self.flip(r);
         unsafe {
             let mut brush = null_mut();
             GdipCreateSolidFill(color, &mut brush);
@@ -136,6 +152,7 @@ impl Canvas {
     }
 
     pub fn stroke(&self, r: Rect, radius: f32, color: u32, width: f32) {
+        let r = self.flip(r);
         self.with_pen(color, width, |pen| unsafe {
             let path = self.path(r, radius);
             GdipDrawPath(self.g, pen, path);
@@ -145,17 +162,26 @@ impl Canvas {
 
     pub fn line(&self, from: (f32, f32), to: (f32, f32), color: u32, width: f32) {
         self.with_pen(color, width, |pen| unsafe {
-            GdipDrawLine(self.g, pen, from.0, from.1, to.0, to.1);
+            GdipDrawLine(self.g, pen, self.flip_x(from.0), from.1, self.flip_x(to.0), to.1);
         });
     }
 
     pub fn arc(&self, r: Rect, start: f32, sweep: f32, color: u32, width: f32) {
+        let r = self.flip(r);
         self.with_pen(color, width, |pen| unsafe {
             GdipDrawArc(self.g, pen, r.x, r.y, r.w, r.h, start, sweep);
         });
     }
 
     fn text_with(&self, family: &str, r: Rect, text: &str, size: f32, color: u32, align: Align) {
+        let r = self.flip(r);
+        // un texte arabe ou hébreu se lit de droite à gauche ; un nombre ou un nom latin change seulement de côté
+        let rtl_text = self.mirror.is_some() && text.chars().any(|c| ('\u{0590}'..='\u{08FF}').contains(&c));
+        let align = match align {
+            Align::Left if self.mirror.is_some() && !rtl_text => Align::Right,
+            Align::Right if self.mirror.is_some() && !rtl_text => Align::Left,
+            other => other,
+        };
         unsafe {
             let name = wide(family);
             let mut font_family = null_mut();
@@ -166,7 +192,8 @@ impl Canvas {
             let mut font = null_mut();
             GdipCreateFont(font_family, size, 0, UnitPixel, &mut font);
             let mut format = null_mut();
-            GdipCreateStringFormat(StringFormatFlagsNoWrap, 0, &mut format);
+            let direction = if rtl_text { StringFormatFlagsDirectionRightToLeft } else { 0 };
+            GdipCreateStringFormat(StringFormatFlagsNoWrap | direction, 0, &mut format);
             let alignment = match align {
                 Align::Left => StringAlignmentNear,
                 Align::Center => StringAlignmentCenter,
@@ -188,11 +215,12 @@ impl Canvas {
     }
 
     pub fn text(&self, r: Rect, text: &str, size: f32, color: u32, align: Align) {
-        self.text_with("Segoe UI", r, text, size, color, align);
+        self.text_with(crate::i18n::font(), r, text, size, color, align);
     }
 
     pub fn strong(&self, r: Rect, text: &str, size: f32, color: u32, align: Align) {
-        self.text_with("Segoe UI Semibold", r, text, size, color, align);
+        let family = if crate::i18n::font() == "Segoe UI" { "Segoe UI Semibold" } else { crate::i18n::font() };
+        self.text_with(family, r, text, size, color, align);
     }
 
     /// Icône de la police système de Windows 11.
@@ -202,7 +230,7 @@ impl Canvas {
 }
 
 /// Dessine dans la fenêtre pendant WM_PAINT, via une image en mémoire (pas de scintillement).
-pub fn paint(window: HWND, scale: f32, draw: impl FnOnce(&Canvas)) {
+pub fn paint(window: HWND, scale: f32, draw: impl FnOnce(&mut Canvas)) {
     unsafe {
         let mut ps: PAINTSTRUCT = std::mem::zeroed();
         let screen = BeginPaint(window, &mut ps);
@@ -213,7 +241,7 @@ pub fn paint(window: HWND, scale: f32, draw: impl FnOnce(&Canvas)) {
         let old = SelectObject(memory, bitmap);
         let mut g = null_mut();
         if GdipCreateFromHDC(memory, &mut g) == 0 {
-            draw(&Canvas::new(g, scale));
+            draw(&mut Canvas::new(g, scale));
             GdipDeleteGraphics(g);
         }
         BitBlt(screen, 0, 0, client.right, client.bottom, memory, 0, 0, SRCCOPY);
@@ -225,18 +253,18 @@ pub fn paint(window: HWND, scale: f32, draw: impl FnOnce(&Canvas)) {
 }
 
 /// Rejoue un dessin sur une image (sans rien afficher), pour connaître les zones cliquables.
-pub fn on_image(bitmap: *mut GpBitmap, draw: impl FnOnce(&Canvas)) {
+pub fn on_image(bitmap: *mut GpBitmap, draw: impl FnOnce(&mut Canvas)) {
     unsafe {
         let mut g = null_mut();
         if GdipGetImageGraphicsContext(bitmap.cast(), &mut g) == 0 {
-            draw(&Canvas::new(g, 1.0));
+            draw(&mut Canvas::new(g, 1.0));
             GdipDeleteGraphics(g);
         }
     }
 }
 
 /// Dessine dans un fichier PNG (aperçus de vérification).
-pub fn render_png(path: &str, width: f32, height: f32, scale: f32, draw: impl FnOnce(&Canvas)) -> bool {
+pub fn render_png(path: &str, width: f32, height: f32, scale: f32, draw: impl FnOnce(&mut Canvas)) -> bool {
     const PNG: GUID = GUID::from_u128(0x557cf406_1a04_11d3_9a73_0000f81ef32e);
     const ARGB32: i32 = 0x26200A;
     acquire();
@@ -245,7 +273,7 @@ pub fn render_png(path: &str, width: f32, height: f32, scale: f32, draw: impl Fn
         GdipCreateBitmapFromScan0((width * scale) as i32, (height * scale) as i32, 0, ARGB32, null(), &mut bitmap);
         let mut g = null_mut();
         GdipGetImageGraphicsContext(bitmap.cast(), &mut g);
-        draw(&Canvas::new(g, scale));
+        draw(&mut Canvas::new(g, scale));
         GdipDeleteGraphics(g);
         let file = wide(path);
         let status = GdipSaveImageToFile(bitmap.cast(), file.as_ptr(), &PNG, null());

@@ -4,14 +4,19 @@
 
 mod app;
 mod autonomy;
+mod brands;
 mod devices;
 mod flyout;
+mod generic;
 mod gfx;
 mod hid;
+mod i18n;
 mod icon;
 mod panel;
+mod pointer;
 mod settings;
 mod state;
+mod strings;
 mod system;
 mod watchdog;
 mod windows;
