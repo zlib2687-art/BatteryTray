@@ -6,6 +6,24 @@ pourcentage, un flyout détaillé au clic, des notifications et une autonomie es
 
 100 % hors ligne, aucune télémétrie, aucun droit administrateur, aucune modification du système.
 
+## Deux versions
+
+| | **Version Rust** (légère) | **Version C#** (complète) |
+|---|---|---|
+| Téléchargement | [BatteryTray-Rust-Setup.exe](https://github.com/zlib2687-art/BatteryTray/releases/download/v0.3.0-rust/BatteryTray-Rust-Setup.exe) (environ 500 Ko) | à construire avec `build-installer.ps1` (environ 160 Mo) |
+| Mémoire engagée mesurée | environ 2 à 4 Mo | environ 22 à 29 Mo |
+| Appareils | Razer DeathAdder V4 Pro, Logitech PRO X 2 et G502 LIGHTSPEED (seuls essayés) | nombreuses marques et Bluetooth (voir plus bas) |
+| Langues | français | 20 |
+| Icônes, panneau, paramètres, autonomie estimée, notifications, redémarrage automatique | oui | oui |
+| Historique sur 30 jours | non | oui |
+
+**Installer la version Rust :** téléchargez le fichier ci-dessus et lancez-le. Ni Rust ni .NET à installer, aucun droit administrateur.
+Le fichier n'est pas signé : Windows peut afficher un avertissement SmartScreen. Si la version C# est installée, désinstallez-la
+d'abord (les deux ne peuvent pas tourner en même temps). Somme de contrôle sur la page de la
+[Release](https://github.com/zlib2687-art/BatteryTray/releases/tag/v0.3.0-rust) ; code et détails dans [`rust/`](rust/README.md).
+
+**Tout ce qui suit décrit la version C#.**
+
 ## Installation
 
 1. Lancez `dist\BatteryTray-Setup.exe` (double-clic).
@@ -145,8 +163,8 @@ renommer / masquer / ordonner, 20 langues, appareils gardés en gris quand ils s
 
 **Ce qui dépend encore de la marque :** un appareil qui n'expose sa batterie **ni** par ces standards **ni** à Windows
 (dongle 2,4 GHz propriétaire : Corsair, SteelSeries, HyperX, manettes PlayStation, micros DJI / RØDE…) ne peut pas être
-lu sans un module écrit pour son protocole, qui n'est en général pas public. Je n'en ai ajouté que pour tes appareils
-(Razer, Logitech). Sur ce PC, les sources génériques s'exécutent sans erreur (balayage de 269 périphériques en 0,1 s)
+lu sans un module écrit pour son protocole, qui n'est en général pas public. En plus des modules Razer et Logitech,
+des pilotes de nombreuses marques ont été portés de BatteryHub (voir ci-dessous), sans essai sur du matériel. Sur ce PC, les sources génériques s'exécutent sans erreur (balayage de 269 périphériques en 0,1 s)
 mais **aucun appareil de plus n'a été trouvé** : elles n'ont donc pas pu être vérifiées sur du matériel réel.
 
 ## Pilotes de marques (portés de BatteryHub)
@@ -187,7 +205,7 @@ de la collection HID) et abandonne si la réponse n'a pas le format attendu.
 | **Finalmouse** | UltralightX et Starlight X (récepteurs 2,4 GHz) |
 | **Flydigi** | Manettes Vader 5 Pro et Apex 5 |
 | **Fractal Design** | Casque Scape (récepteur ou câble) |
-| **GameSir** | Nova / Nova 2 / Nova 2 Lite, Cyclone 2, Tarantula Pro et NovaPro (SAPJoy) ; le Cyclone Pro (Bluetooth LE) n'est pas encore porté |
+| **GameSir** | Nova / Nova 2 / Nova 2 Lite, Cyclone 2, Tarantula Pro et NovaPro (SAPJoy) ; Cyclone Pro en Bluetooth LE (voir plus bas) |
 | **8BitDo** | Ultimate 2 / 2C / 3-mode, Pro 2 / Pro 3, SN30 Pro, SF30 Pro |
 | **Keychron** | Souris (M1…M7, 4K, 8K), trackball Nape Pro, claviers sur récepteur Link (micrologiciel patché) |
 | **MSI** | Souris VERSA 300 Elite, Clutch GM31 et GM41 |
@@ -314,6 +332,7 @@ BatteryTray\            application (WinForms, .NET 8)
   Loc.cs, Loc.Settings.cs   textes en 20 langues (Loc.More.cs : les 13 ajoutées)
   Installer.cs          installation / désinstallation (même fichier que le programme)
 BatteryTray.Tests\      tests xUnit
+rust\                   version légère en Rust (voir rust/README.md)
 Prototype\              prototype console de l'étape de faisabilité
 build-installer.ps1     construction de l'installateur
 ```
